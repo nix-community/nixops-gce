@@ -5,9 +5,9 @@
 import os
 import libcloud.common.google
 
-from nixops.resources.gce_http_health_check import GCEHTTPHealthCheckState
+from nixopsgce.resources.gce_http_health_check import GCEHTTPHealthCheckState
 from nixops.util import attr_property
-from nixops.gce_common import ResourceDefinition, ResourceState, optional_string
+from nixopsgce.gce_common import ResourceDefinition, ResourceState, optional_string
 
 class GCETargetPoolDefinition(ResourceDefinition):
     """Definition of a GCE Target Pool"""

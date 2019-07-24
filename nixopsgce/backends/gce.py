@@ -3,16 +3,16 @@
 import time
 
 from nixops import known_hosts
-from nixops.util import attr_property, create_key_pair, generate_random_string
+from nixops.util import attr_property, create_key_pair, generate_random_string, parse_nixos_version, check_wait
 from nixops.nix_expr import Function, RawValue, Call
 
 from nixops.backends import MachineDefinition, MachineState
 
-from nixops.gce_common import ResourceDefinition, ResourceState
-import nixops.resources.gce_static_ip
-import nixops.resources.gce_disk
-import nixops.resources.gce_image
-import nixops.resources.gce_network
+from nixopsgce.gce_common import ResourceDefinition, ResourceState
+import nixopsgce.resources.gce_static_ip
+import nixopsgce.resources.gce_disk
+import nixopsgce.resources.gce_image
+import nixopsgce.resources.gce_network
 
 import libcloud.common.google
 from libcloud.compute.types import NodeState
@@ -132,7 +132,7 @@ class GCEState(MachineState, ResourceState):
 
     block_device_mapping = attr_property("gce.blockDeviceMapping", {}, 'json')
 
-    backups = nixops.util.attr_property("gce.backups", {}, 'json')
+    backups = attr_property("gce.backups", {}, 'json')
 
     def __init__(self, depl, name, id):
         MachineState.__init__(self, depl, name, id)
@@ -231,7 +231,7 @@ class GCEState(MachineState, ResourceState):
             self.public_client_key = public
             self.private_client_key = private
 
-        self.host_key_type = "ed25519" if self.state_version != "14.12" and nixops.util.parse_nixos_version(defn.config["nixosRelease"]) >= ["15", "09"] else "ecdsa"
+        self.host_key_type = "ed25519" if self.state_version != "14.12" and parse_nixos_version(defn.config["nixosRelease"]) >= ["15", "09"] else "ecdsa"
 
         if not self.public_host_key:
             (private, public) = create_key_pair(type=self.host_key_type)
@@ -637,7 +637,7 @@ class GCEState(MachineState, ResourceState):
 
             def check_stopped():
                 return self.node().state == NodeState.STOPPED
-            if nixops.util.check_wait(check_stopped, initial=3, max_tries=100, exception=False): # = 5 min
+            if check_wait(check_stopped, initial=3, max_tries=100, exception=False): # = 5 min
                 self.log_end("stopped")
             else:
                 self.log_end("(timed out)")
@@ -761,10 +761,10 @@ class GCEState(MachineState, ResourceState):
     def create_after(self, resources, defn):
         # Just a check for all GCE resource classes
         return {r for r in resources if
-                isinstance(r, nixops.resources.gce_static_ip.GCEStaticIPState) or
-                isinstance(r, nixops.resources.gce_disk.GCEDiskState) or
-                isinstance(r, nixops.resources.gce_image.GCEImageState) or
-                isinstance(r, nixops.resources.gce_network.GCENetworkState)}
+                isinstance(r, nixopsgce.resources.gce_static_ip.GCEStaticIPState) or
+                isinstance(r, nixopsgce.resources.gce_disk.GCEDiskState) or
+                isinstance(r, nixopsgce.resources.gce_image.GCEImageState) or
+                isinstance(r, nixopsgce.resources.gce_network.GCENetworkState)}
 
 
     def backup(self, defn, backup_id, devices=[]):

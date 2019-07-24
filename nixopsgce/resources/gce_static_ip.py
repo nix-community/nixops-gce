@@ -6,7 +6,7 @@ import os
 import libcloud.common.google
 
 from nixops.util import attr_property
-from nixops.gce_common import ResourceDefinition, ResourceState, optional_string
+from nixopsgce.gce_common import ResourceDefinition, ResourceState, optional_string
 
 
 class GCEStaticIPDefinition(ResourceDefinition):

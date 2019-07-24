@@ -3,7 +3,7 @@
 { config, lib, pkgs, name, uuid, resources, ... }:
 
 with lib;
-with import ./lib.nix lib;
+with import <nixops/lib.nix> lib;
 
 let
 
@@ -340,7 +340,7 @@ in
       };
 
       bootstrapImage = mkOption {
-        default = resources.gceImages.bootstrap;
+        default = null;
         type = types.either types.str (resource "gce-image");
         description = ''
           Bootstrap image name or resource to use to create the root disk of the instance.

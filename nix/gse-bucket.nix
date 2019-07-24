@@ -1,7 +1,7 @@
 { config, lib, pkgs, uuid, name, ... }:
 
 with lib;
-with import ./lib.nix lib;
+with import <nixops/lib.nix> lib;
 
 let
 
