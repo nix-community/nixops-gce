@@ -211,6 +211,12 @@ let
     };
   };
 
+  nixosVersion = builtins.substring 0 5 (config.system.nixos.version or config.system.nixosVersion);
+
+  bootstrap-images = import ./gce-images.nix;
+  # To be changed to
+  # bootstrap-images = import <nixpkgs/nixos/modules/virtualisation/gce-images.nix>;
+
 in
 {
   ###### interface
@@ -240,7 +246,7 @@ in
         type = types.str;
         description = ''
           GCE instance type. See <link
-          xlink:href='https://developers.google.com/compute/pricing'/> for a
+          xlink:href='https://cloud.google.com/compute/all-pricing'/> for a
           list of valid instance types.
         '';
       };
@@ -381,7 +387,7 @@ in
             (v: elem v [ "MIGRATE" "TERMINATE" ]);
         description = ''
           Defines the maintenance behavior for this instance. For more information, see <link
-          xlink:href='https://developers.google.com/compute/docs/instances#onhostmaintenance'/>.
+          xlink:href='https://cloud.google.com/compute/docs/instances#onhostmaintenance'/>.
 
           Allowed values are: "MIGRATE" to let GCE automatically migrate your
           instances out of the way of maintenance events and
@@ -395,7 +401,7 @@ in
         description = ''
           Whether the instance is preemptible.
           For more information, see <link
-          xlink:href='https://developers.google.com/compute/docs/instances#onhostmaintenance'/>.
+          xlink:href='https://cloud.google.com/compute/docs/instances/preemptible'/>.
         '';
       };
 
@@ -411,6 +417,11 @@ in
 
   config = mkIf (config.deployment.targetEnv == "gce") {
     nixpkgs.system = mkOverride 900 "x86_64-linux";
+
+    # Using NixOs public GCE images by default
+    deployment.gce.bootstrapImage = mkDefault (
+      bootstrap-images."${nixosVersion}" or bootstrap-images.latest;
+    );
 
     deployment.gce.blockDeviceMapping =  {
       "${gce_dev_prefix}${config.deployment.gce.machineName}-root" = {
