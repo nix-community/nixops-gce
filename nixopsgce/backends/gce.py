@@ -66,7 +66,8 @@ class GCEDefinition(MachineDefinition, ResourceDefinition):
                 'disk': self.get_option_value(xml, 'disk', 'resource', optional = True),
                 'disk_name': opt_disk_name(self.get_option_value(xml, 'disk_name', str, optional = True)),
                 'snapshot': self.get_option_value(xml, 'snapshot', str, optional = True),
-                'image': self.get_option_value(xml, 'image', 'resource', optional = True),
+                'image': self.get_option_value(xml, 'image', str, optional = True),
+                'publicImageProject' : self.get_option_value(xml, 'publicImageProject', str, optional = True)
                 'size': self.get_option_value(xml, 'size', int, optional = True),
                 'type': self.get_option_value(xml, 'diskType', str),
                 'deleteOnTermination': self.get_option_value(xml, 'deleteOnTermination', bool),
@@ -351,15 +352,40 @@ class GCEState(MachineState, ResourceState):
             if v['disk'] is None:
                 extra_msg = ( " from snapshot '{0}'".format(v['snapshot']) if v['snapshot']
                          else " from image '{0}'".format(v['image'])       if v['image']
+                         else " marked as public. "                        if v['publicImageProject']
                          else "" )
                 self.log("creating GCE disk of {0} GiB{1}..."
                          .format(v['size'] if v['size'] else "auto", extra_msg))
                 v['region'] = defn.region
+
+                # Retrieve GCENodeImage based on family name and project
+                if v['publicImageProject']:
+                    try:
+                        img = self.connect().ex_get_image_from_family(
+                                  image_family=v['image'],
+                                  ex_project_list=[v['publicImageProject']],
+                                  ex_standard_projects=False,
+                              )
+                    except libcloud.common.google.ResourceNotFoundError:
+                        raise Exception("Image family {0} not found".format(v['image']))
+                    except Exception as ex:
+                        self.log(str(ex))
+                        raise Exception("Image from image family {0} has not been set to public in project {1}".format(
+                            v['image'], v['publicImageProject']
+                        ))
+                else:
+                    img = v['image']
                 try:
-                    self.connect().create_volume(v['size'], v['disk_name'], v['region'],
-                                                snapshot=v['snapshot'], image=v['image'],
-                                                ex_disk_type="pd-" + v.get('type', 'standard'),
-                                                use_existing=False)
+                    self.connect().create_volume(
+                        size=v['size'],
+                        name=v['disk_name'],
+                        location=v['region'],
+                        snapshot=v['snapshot'],
+                        image=img,
+                        use_existing=False,
+                        ex_disk_type="pd-" + v.get('type', 'standard'),
+                        ex_image_family=None,
+                    )
                 except AttributeError:
                     # libcloud bug: The region we're trying to create the disk
                     # in doesn't exist.

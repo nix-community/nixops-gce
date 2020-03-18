@@ -86,6 +86,12 @@ let
         '';
       };
 
+      publicImageProject = mkOption {
+        example = "nixos-gcp-project";
+        type = types.str;
+        description = "The parent project containing a GCE image that was made public.";
+      };
+
       size = mkOption {
         default = null;
         type = types.nullOr types.int;
@@ -213,9 +219,9 @@ let
 
   nixosVersion = builtins.substring 0 5 (config.system.nixos.version or config.system.nixosVersion);
 
-  bootstrap-images = import ./gce-images.nix;
+  image-family = import ./gce-images.nix;
   # To be changed to
-  # bootstrap-images = import <nixpkgs/nixos/modules/virtualisation/gce-images.nix>;
+  # image-family = import <nixpkgs/nixos/modules/virtualisation/gce-images.nix>;
 
 in
 {
@@ -420,12 +426,13 @@ in
 
     # Using NixOs public GCE images by default
     deployment.gce.bootstrapImage = mkDefault (
-      bootstrap-images."${nixosVersion}" or bootstrap-images.latest;
+      image-family."${nixosVersion}" or image-family.latest
     );
 
     deployment.gce.blockDeviceMapping =  {
       "${gce_dev_prefix}${config.deployment.gce.machineName}-root" = {
           image = config.deployment.gce.bootstrapImage;
+          publicImageProject = image-family."project";
           size = config.deployment.gce.rootDiskSize;
           diskType = config.deployment.gce.rootDiskType;
           bootDisk = true;

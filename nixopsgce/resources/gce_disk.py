@@ -29,7 +29,8 @@ class GCEDiskDefinition(ResourceDefinition):
         self.copy_option(xml, 'region', str)
         self.copy_option(xml, 'size', int, optional = True)
         self.copy_option(xml, 'snapshot', str, optional = True)
-        self.copy_option(xml, 'image', 'resource', optional = True)
+        self.copy_option(xml, 'image', str, optional = True)
+        self.copy_option(xml, 'publicImageProject', str, optional = True)
         self.copy_option(xml, 'diskType', str)
 
     def show_type(self):
@@ -96,14 +97,40 @@ class GCEDiskState(ResourceState):
         if self.state != self.UP:
             extra_msg = ( " from snapshot '{0}'".format(defn.snapshot) if defn.snapshot
                      else " from image '{0}'".format(defn.image)       if defn.image
+                     else " marked as public. "                        if defn.publicImageProject
                      else "" )
             self.log("creating GCE disk of {0} GiB{1}..."
                      .format(defn.size if defn.size else "auto", extra_msg))
+
+            # Retrieve GCENodeImage based on family name and project
+            if defn.publicImageProject:
+                try:
+                    img = self.connect().ex_get_image_from_family(
+                              image_family=defn.image,
+                              ex_project_list=[defn.publicImageProject],
+                              ex_standard_projects=False,
+                          )
+                except libcloud.common.google.ResourceNotFoundError:
+                    raise Exception("Image family {0} not found".format(defn.image))
+                except Exception as ex:
+                    self.log(str(ex))
+                    raise Exception("Image from image family {0} has not been set to public in project {1}".format(
+                            defn.image, defn.publicImageProject
+                        ))
+            else:
+                img = defn.image
+
             try:
-                volume = self.connect().create_volume(defn.size, defn.disk_name, defn.region,
-                                                      snapshot = defn.snapshot, image = defn.image,
-                                                      ex_disk_type = "pd-" + defn.disk_type,
-                                                      use_existing = False)
+                volume = self.connect().create_volume(
+                            size=defn.size,
+                            name=defn.disk_name,
+                            location=defn.region,
+                            snapshot=defn.snapshot,
+                            image=img,
+                            use_existing=False,
+                            ex_disk_type="pd-" + defn.disk_type,
+                            ex_image_family=None,
+                        )
             except libcloud.common.google.ResourceExistsError:
                 raise Exception("tried creating a disk that already exists; "
                                 "please run 'deploy --check' to fix this")
