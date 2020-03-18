@@ -67,7 +67,7 @@ class GCEDefinition(MachineDefinition, ResourceDefinition):
                 'disk_name': opt_disk_name(self.get_option_value(xml, 'disk_name', str, optional = True)),
                 'snapshot': self.get_option_value(xml, 'snapshot', str, optional = True),
                 'image': self.get_option_value(xml, 'image', str, optional = True),
-                'publicImageProject' : self.get_option_value(xml, 'publicImageProject', str, optional = True)
+                'publicImageProject' : self.get_option_value(xml, 'publicImageProject', str, optional = True),
                 'size': self.get_option_value(xml, 'size', int, optional = True),
                 'type': self.get_option_value(xml, 'diskType', str),
                 'deleteOnTermination': self.get_option_value(xml, 'deleteOnTermination', bool),
