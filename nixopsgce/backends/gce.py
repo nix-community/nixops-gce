@@ -367,12 +367,16 @@ class GCEState(MachineState, ResourceState):
                                   ex_standard_projects=False,
                               )
                     except libcloud.common.google.ResourceNotFoundError:
-                        raise Exception("Image family {0} not found".format(v['image']))
-                    except Exception as ex:
-                        self.log(str(ex))
-                        raise Exception("Image from image family {0} has not been set to public in project {1}".format(
+                        raise Exception("Image family {0} not found in project {1}".format(
                             v['image'], v['publicImageProject']
                         ))
+                    except libcloud.common.google.GoogleBaseError as ex:
+                        if ex.value['reason'] == 'forbidden':
+                            raise Exception("Image from image family {0} has not been set to public in project {1}".format(
+                                v['image'], v['publicImageProject']
+                            ))
+                        else:
+                            raise Exception(ex.value['message'])
                 else:
                     img = v['image']
                 try:

@@ -111,12 +111,16 @@ class GCEDiskState(ResourceState):
                               ex_standard_projects=False,
                           )
                 except libcloud.common.google.ResourceNotFoundError:
-                    raise Exception("Image family {0} not found".format(defn.image))
-                except Exception as ex:
-                    self.log(str(ex))
-                    raise Exception("Image from image family {0} has not been set to public in project {1}".format(
+                    raise Exception("Image family {0} not found in project {1}".format(
+                        defn.image, defn.public_image_project
+                    ))
+                except libcloud.common.google.GoogleBaseError as ex:
+                    if ex.value['reason'] == 'forbidden':
+                        raise Exception("Image from image family {0} has not been set to public in project {1}".format(
                             defn.image, defn.public_image_project
                         ))
+                    else:
+                        raise Exception(ex.value['message'])
             else:
                 img = defn.image
 
