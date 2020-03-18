@@ -200,7 +200,7 @@ let
     options = {
       gce = mkOption {
         default = null;
-        type = with types; uniq (nullOr (submodule gceDiskOptions));
+        type = with types; (nullOr (submodule gceDiskOptions));
         description = ''
           GCE disk to be attached to this mount point.  This is
           shorthand for defining a separate

@@ -97,17 +97,17 @@ class GCEDiskState(ResourceState):
         if self.state != self.UP:
             extra_msg = ( " from snapshot '{0}'".format(defn.snapshot) if defn.snapshot
                      else " from image '{0}'".format(defn.image)       if defn.image
-                     else " marked as public. "                        if defn.publicImageProject
+                     else " marked as public. "                        if defn.public_image_project
                      else "" )
             self.log("creating GCE disk of {0} GiB{1}..."
                      .format(defn.size if defn.size else "auto", extra_msg))
 
             # Retrieve GCENodeImage based on family name and project
-            if defn.publicImageProject:
+            if defn.public_image_project:
                 try:
                     img = self.connect().ex_get_image_from_family(
                               image_family=defn.image,
-                              ex_project_list=[defn.publicImageProject],
+                              ex_project_list=[defn.public_image_project],
                               ex_standard_projects=False,
                           )
                 except libcloud.common.google.ResourceNotFoundError:
@@ -115,7 +115,7 @@ class GCEDiskState(ResourceState):
                 except Exception as ex:
                     self.log(str(ex))
                     raise Exception("Image from image family {0} has not been set to public in project {1}".format(
-                            defn.image, defn.publicImageProject
+                            defn.image, defn.public_image_project
                         ))
             else:
                 img = defn.image
