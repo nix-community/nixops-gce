@@ -1,5 +1,5 @@
 {
-  config_exporters = { resources, optionalAttrs, pkgs, ... }: with pkgs.lib ;[
+  config_exporters = { optionalAttrs, ... }: [
     (config: {
       gce = optionalAttrs (config.deployment.targetEnv == "gce") config.deployment.gce;
     })
