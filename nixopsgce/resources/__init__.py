@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 from . import gce_disk
 from . import gce_forwarding_rule
 from . import gce_http_health_check

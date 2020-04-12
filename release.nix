@@ -9,7 +9,7 @@ in
   rec {
     build = pkgs.lib.genAttrs [ "x86_64-linux" "i686-linux" "x86_64-darwin" ] (system:
       with import nixpkgs { inherit system; };
-      python2Packages.buildPythonApplication rec {
+      python3Packages.buildPythonApplication rec {
         name = "nixops-gce";
         src = ./.;
         prePatch = ''
@@ -17,8 +17,8 @@ in
             substituteInPlace $i --subst-var-by version ${version}
           done
         '';
-        buildInputs = [ python2Packages.nose python2Packages.coverage ];
-        propagatedBuildInputs = [ python2Packages.libcloud ];
+        buildInputs = [ python3Packages.nose python3Packages.coverage ];
+        propagatedBuildInputs = [ python3Packages.libcloud ];
         doCheck = true;
         postInstall = ''
           mkdir -p $out/share/nix/nixops-gce
