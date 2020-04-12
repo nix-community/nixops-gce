@@ -85,7 +85,7 @@ class GCEDefinition(MachineDefinition, ResourceDefinition):
         self.block_device_mapping = { k.get("name"): parse_block_device(k)
                                       for k in x.findall("attr[@name='blockDeviceMapping']/attrs/attr") }
 
-        boot_devices = [k for k,v in self.block_device_mapping.iteritems() if v['bootDisk']]
+        boot_devices = [k for k,v in self.block_device_mapping.items() if v['bootDisk']]
         if len(boot_devices) == 0:
             raise Exception("machine {0} must have a boot device.".format(self.name))
         if len(boot_devices) > 1:
@@ -176,7 +176,7 @@ class GCEState(MachineState, ResourceState):
     def gen_metadata(self, metadata):
         return {
           'kind': 'compute#metadata',
-          'items': [ {'key': k, 'value': v} for k,v in metadata.iteritems() ]
+          'items': [ {'key': k, 'value': v} for k,v in metadata.items() ]
         }
 
     def update_block_device_mapping(self, k, v):
@@ -204,7 +204,7 @@ class GCEState(MachineState, ResourceState):
     def _node_deleted(self):
         self.vm_id = None
         self.state = self.STOPPED
-        for k,v in self.block_device_mapping.iteritems():
+        for k,v in self.block_device_mapping.items():
             v['needsAttach'] = True
             self.update_block_device_mapping(k, v)
 
@@ -300,7 +300,7 @@ class GCEState(MachineState, ResourceState):
 
                     attached_disk_names = [d.get("deviceName", None) for d in node.extra['disks'] ]
                     # check that all disks are attached
-                    for k, v in self.block_device_mapping.iteritems():
+                    for k, v in self.block_device_mapping.items():
                         disk_name = v['disk_name'] or v['disk']
                         is_attached = disk_name in attached_disk_names
                         if not is_attached  and not v.get('needsAttach', False):
@@ -313,8 +313,8 @@ class GCEState(MachineState, ResourceState):
                             self.update_block_device_mapping(k, v)
 
                     # check that no extra disks are attached
-                    defn_disk_names  = [v['disk_name'] or v['disk'] for k,v in defn.block_device_mapping.iteritems()]
-                    state_disk_names = [v['disk_name'] or v['disk'] for k,v in self.block_device_mapping.iteritems()]
+                    defn_disk_names  = [v['disk_name'] or v['disk'] for k,v in defn.block_device_mapping.items()]
+                    state_disk_names = [v['disk_name'] or v['disk'] for k,v in self.block_device_mapping.items()]
                     unexpected_disks = list( set(attached_disk_names) - set(defn_disk_names) - set(state_disk_names) )
                     if unexpected_disks:
                         self.warn("unexpected disk(s) {0} are attached to this instance; "
@@ -331,7 +331,7 @@ class GCEState(MachineState, ResourceState):
 
             # check that the disks that should exist do exist
             # and that the disks we expected to create don't exist yet
-            for k,v in defn.block_device_mapping.iteritems():
+            for k,v in defn.block_device_mapping.items():
                 disk_name = v['disk_name'] or v['disk']
                 try:
                     disk = self.connect().ex_get_volume(disk_name, v.get('region', None) )
@@ -347,7 +347,7 @@ class GCEState(MachineState, ResourceState):
                         self.update_block_device_mapping(k, None)
 
         # create missing disks
-        for k, v in defn.block_device_mapping.iteritems():
+        for k, v in defn.block_device_mapping.items():
             if k in self.block_device_mapping: continue
             if v['disk'] is None:
                 extra_msg = ( " from snapshot '{0}'".format(v['snapshot']) if v['snapshot']
@@ -416,7 +416,7 @@ class GCEState(MachineState, ResourceState):
                 recreate = True
                 self.warn('change of service account requires a reboot')
 
-            for k, v in self.block_device_mapping.iteritems():
+            for k, v in self.block_device_mapping.items():
                 defn_v = defn.block_device_mapping.get(k, None)
                 if defn_v and not v.get('needsAttach', False):
                     if v['bootDisk'] != defn_v['bootDisk']:
@@ -439,7 +439,7 @@ class GCEState(MachineState, ResourceState):
 
         if not self.vm_id:
             self.log("creating {0}...".format(self.full_name))
-            boot_disk = next((v for k,v in defn.block_device_mapping.iteritems() if v.get('bootDisk', False)), None)
+            boot_disk = next((v for v in defn.block_device_mapping.values() if v.get('bootDisk', False)), None)
             if not boot_disk:
                 raise Exception("no boot disk found for {0}".format(self.full_name))
             try:
@@ -477,7 +477,7 @@ class GCEState(MachineState, ResourceState):
             self.log("got public IP: {0}".format(self.public_ipv4))
             known_hosts.add(self.public_ipv4, self.public_host_key)
             self.private_ipv4 = node.private_ips[0]
-            for k,v in self.block_device_mapping.iteritems():
+            for k,v in self.block_device_mapping.items():
                 v['needsAttach'] = True
                 self.update_block_device_mapping(k, v)
             # set scheduling config here instead of triggering an update using None values
@@ -759,7 +759,7 @@ class GCEState(MachineState, ResourceState):
             if node.state == NodeState.RUNNING:
                 # check that all disks are attached
                 res.disks_ok = True
-                for k, v in self.block_device_mapping.iteritems():
+                for v in self.block_device_mapping.values():
                     disk_name = v['disk_name'] or v['disk']
                     if all(d.get("deviceName", None) != disk_name for d in node.extra['disks']):
                         res.disks_ok = False
@@ -806,7 +806,7 @@ class GCEState(MachineState, ResourceState):
 
         backup = {}
         _backups = self.backups
-        for k, v in self.block_device_mapping.iteritems():
+        for k, v in self.block_device_mapping.items():
             disk_name = v['disk_name'] or v['disk']
             if devices == [] or k in devices or disk_name in devices:
                 volume = self.connect().ex_get_volume(disk_name, v.get('region', None))
@@ -883,7 +883,7 @@ class GCEState(MachineState, ResourceState):
         if not backup_id in _backups.keys():
             self.warn('backup {0} not found; skipping'.format(backup_id))
         else:
-            for d_name, snapshot_id in _backups[backup_id].iteritems():
+            for d_name, snapshot_id in _backups[backup_id].items():
                 try:
                     self.log('removing snapshot {0}'.format(snapshot_id))
                     self.connect().ex_get_snapshot(snapshot_id).destroy()
@@ -896,7 +896,7 @@ class GCEState(MachineState, ResourceState):
     def get_backups(self):
         self.connect()
         backups = {}
-        for b_id, snapshots in self.backups.iteritems():
+        for b_id, snapshots in self.backups.items():
             backups[b_id] = {}
             backup_status = "complete"
             info = []
@@ -914,8 +914,8 @@ class GCEState(MachineState, ResourceState):
                     except libcloud.common.google.ResourceNotFoundError:
                         info.append("{0} - {1} - {2} - snapshot has disappeared".format(self.name, disk_name, snapshot_id))
                         backup_status = "unavailable"
-            for d_name, s_id in snapshots.iteritems():
-                if not any(d_name == v['disk_name'] or d_name == v['disk'] for k,v in self.block_device_mapping.iteritems()):
+            for d_name, s_id in snapshots.items():
+                if not any(d_name == v['disk_name'] or d_name == v['disk'] for k,v in self.block_device_mapping.items()):
                     info.append("{0} - {1} - {2} - a snapshot of a disk that is not or no longer deployed".format(self.name, d_name, s_id))
             backups[b_id]['status'] = backup_status
             backups[b_id]['info'] = info

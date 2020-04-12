@@ -1,10 +1,10 @@
-import gce_disk
-import gce_forwarding_rule
-import gce_http_health_check
-import gce_image
-import gce_network
-import gce_route
-import gce_static_ip
-import gce_target_pool
-import gse_bucket
-import __init__
+from __future__ import absolute_import
+from . import gce_disk
+from . import gce_forwarding_rule
+from . import gce_http_health_check
+from . import gce_image
+from . import gce_network
+from . import gce_route
+from . import gce_static_ip
+from . import gce_target_pool
+from . import gse_bucket

@@ -95,7 +95,7 @@ class GCERouteState(ResourceState):
         # route manually and create another one with the
         # same name, but different properties.
         real_state_differ = any([getattr(route, route_attr) != getattr(self, self_attr)
-                                 for route_attr, self_attr in route_properties.iteritems()])
+                                 for route_attr, self_attr in route_properties.items()])
 
         # We need to check the network in separate, since GCE API add the project and the region
         network_differ = route.network.split("/")[-1] != self.network

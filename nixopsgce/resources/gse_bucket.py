@@ -78,7 +78,7 @@ class GSEBucketDefinition(ResourceDefinition):
         self.lifecycle = sorted([ parse_lifecycle(x)
                            for x in xml.find("attrs/attr[@name='lifecycle']/list") ])
 
-        if any( all(v is None for k,v in r.iteritems() if k != 'action')
+        if any( all(v is None for k,v in r.items() if k != 'action')
                 for r in self.lifecycle):
             raise Exception("Bucket '{0}' object lifecycle management "
                             "rule must specify at least one condition"
