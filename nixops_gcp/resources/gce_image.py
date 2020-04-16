@@ -6,7 +6,7 @@ import os
 import libcloud.common.google
 
 from nixops.util import attr_property
-from nixops-gcp.gcp_common import ResourceDefinition, ResourceState
+from nixops_gcp.gcp_common import ResourceDefinition, ResourceState
 
 
 class GCEImageDefinition(ResourceDefinition):

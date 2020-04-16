@@ -10,6 +10,6 @@ def nixexprs():
 @nixops.plugins.hookimpl
 def load():
     return [
-        "nixops-gcp.resources",
-        "nixops-gcp.backends.gce",
+        "nixops_gcp.resources",
+        "nixops_gcp.backends.gce",
     ]

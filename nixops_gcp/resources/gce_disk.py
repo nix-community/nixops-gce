@@ -8,8 +8,8 @@ from libcloud.compute.types import Provider
 from libcloud.compute.providers import get_driver
 
 from nixops.util import attr_property
-from nixops-gcp.gcp_common import ResourceDefinition, ResourceState, optional_string, optional_int
-from nixops-gcp.resources.gce_image import GCEImageState
+from nixops_gcp.gcp_common import ResourceDefinition, ResourceState, optional_string, optional_int
+from nixops_gcp.resources.gce_image import GCEImageState
 
 class GCEDiskDefinition(ResourceDefinition):
     """Definition of a GCE Persistent Disk"""

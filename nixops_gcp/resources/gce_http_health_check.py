@@ -6,7 +6,7 @@ import os
 import libcloud.common.google
 
 from nixops.util import attr_property
-from nixops-gcp.gcp_common import ResourceDefinition, ResourceState, optional_string, ensure_not_empty, ensure_positive
+from nixops_gcp.gcp_common import ResourceDefinition, ResourceState, optional_string, ensure_not_empty, ensure_positive
 
 
 class GCEHTTPHealthCheckDefinition(ResourceDefinition):

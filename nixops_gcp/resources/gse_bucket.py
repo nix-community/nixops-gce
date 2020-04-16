@@ -7,7 +7,7 @@ import re
 import libcloud.common.google
 
 from nixops.util import attr_property
-from nixops-gcp.gcp_common import ResourceDefinition, ResourceState, optional_string, optional_int, optional_bool
+from nixops_gcp.gcp_common import ResourceDefinition, ResourceState, optional_string, optional_int, optional_bool
 
 class GSEResponse(libcloud.common.google.GoogleResponse):
     pass
