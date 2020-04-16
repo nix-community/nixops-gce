@@ -17,7 +17,7 @@ in
   nat-instance =
     { pkgs, resources, lib, ... }:
     {
-      deployment.targetEnv = "gce";
+      deployment.targetEnv = "gcp";
       deployment.gce = {
        canIpForward = true;
        region =  "us-central1-a";

@@ -1,6 +1,6 @@
 {
   machine =
-    { deployment.targetEnv = "gce";
+    { deployment.targetEnv = "gcp";
       deployment.gce = {
         # credentials
         project = "...";

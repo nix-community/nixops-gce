@@ -5,7 +5,7 @@ in
   machine =
     { resources, ... }:
     {
-      deployment.targetEnv = "gce";
+      deployment.targetEnv = "gcp";
       deployment.gce = {
         inherit region;
         instanceType = "g1-small";
