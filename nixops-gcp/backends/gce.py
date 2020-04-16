@@ -8,11 +8,11 @@ from nixops.nix_expr import Function, RawValue, Call
 
 from nixops.backends import MachineDefinition, MachineState
 
-from nixopsgce.gce_common import ResourceDefinition, ResourceState
-import nixopsgce.resources.gce_static_ip
-import nixopsgce.resources.gce_disk
-import nixopsgce.resources.gce_image
-import nixopsgce.resources.gce_network
+from nixops-gcp.gcp_common import ResourceDefinition, ResourceState
+import nixops-gcp.resources.gce_static_ip
+import nixops-gcp.resources.gce_disk
+import nixops-gcp.resources.gce_image
+import nixops-gcp.resources.gce_network
 
 import libcloud.common.google
 from libcloud.compute.types import NodeState
@@ -791,10 +791,10 @@ class GCEState(MachineState, ResourceState):
     def create_after(self, resources, defn):
         # Just a check for all GCE resource classes
         return {r for r in resources if
-                isinstance(r, nixopsgce.resources.gce_static_ip.GCEStaticIPState) or
-                isinstance(r, nixopsgce.resources.gce_disk.GCEDiskState) or
-                isinstance(r, nixopsgce.resources.gce_image.GCEImageState) or
-                isinstance(r, nixopsgce.resources.gce_network.GCENetworkState)}
+                isinstance(r, nixops-gcp.resources.gce_static_ip.GCEStaticIPState) or
+                isinstance(r, nixops-gcp.resources.gce_disk.GCEDiskState) or
+                isinstance(r, nixops-gcp.resources.gce_image.GCEImageState) or
+                isinstance(r, nixops-gcp.resources.gce_network.GCENetworkState)}
 
 
     def backup(self, defn, backup_id, devices=[]):

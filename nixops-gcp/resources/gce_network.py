@@ -8,7 +8,7 @@ from libcloud.compute.types import Provider
 from libcloud.compute.providers import get_driver
 
 from nixops.util import attr_property
-from nixopsgce.gce_common import ResourceDefinition, ResourceState
+from nixops-gcp.gcp_common import ResourceDefinition, ResourceState
 
 
 def normalize_list(tags):

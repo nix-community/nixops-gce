@@ -6,7 +6,7 @@ import libcloud.common.google
 
 from nixops import backends
 from nixops.util import attr_property
-from nixopsgce.gce_common import ResourceDefinition, ResourceState
+from nixops-gcp.gcp_common import ResourceDefinition, ResourceState
 
 
 class GCERouteDefinition(ResourceDefinition):
