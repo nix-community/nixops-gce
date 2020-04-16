@@ -8,11 +8,11 @@ include = [ "nixops-gcp/nix/*.nix" ]
 
 [tool.poetry.dependencies]
 python = "^3.7"
+apache-libcloud = "^3.0.0"
 nixops = {git = "https://github.com/NixOS/nixops.git", rev = "master"}
 
 [tool.poetry.dev-dependencies]
 nose = "^1"
-libcloud = "^2.6.0"
 mypy = "^0.770"
 black = "^19.10b0"
 
