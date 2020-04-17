@@ -1,7 +1,7 @@
 {
   config_exporters = { optionalAttrs, ... }: [
     (config: {
-      gcp = optionalAttrs (config.deployment.targetEnv == "gcp") config.deployment.gcp;
+      gce = optionalAttrs (config.deployment.targetEnv == "gce") config.deployment.gce;
     })
   ];
   options = [

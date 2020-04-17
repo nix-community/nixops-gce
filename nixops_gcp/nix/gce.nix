@@ -422,7 +422,7 @@ in
 
   ###### implementation
 
-  config = mkIf (config.deployment.targetEnv == "gcp") {
+  config = mkIf (config.deployment.targetEnv == "gce") {
     nixpkgs.system = mkOverride 900 "x86_64-linux";
 
     # Using NixOs public GCE images by default
