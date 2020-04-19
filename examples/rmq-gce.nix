@@ -73,7 +73,7 @@ let
                 '';
             };
             networking.firewall.enable = false; #allowedTCPPorts = [ 5672 4369 25672 15672];
-            deployment.targetEnv = "gcp";
+            deployment.targetEnv = "gce";
             deployment.gce = credentials // {
                 tags = ["rmq-node" "rmq-manager" ];
                 network = resources.gceNetworks."${prefix}net";
