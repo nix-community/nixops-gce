@@ -220,9 +220,9 @@ let
 
   nixosVersion = builtins.substring 0 5 (config.system.nixos.version or config.system.nixosVersion);
 
-  image-family = import ./gce-images.nix;
+  imageFamily = import ./gce-images.nix;
   # To be changed to
-  # image-family = import <nixpkgs/nixos/modules/virtualisation/gce-images.nix>;
+  # imageFamily = import <nixpkgs/nixos/modules/virtualisation/gce-images.nix>;
 
 in
 {
@@ -427,13 +427,13 @@ in
 
     # Using NixOs public GCE images by default
     deployment.gce.bootstrapImage = mkDefault (
-      image-family."${nixosVersion}" or image-family.latest
+      imageFamily."${nixosVersion}" or imageFamily.latest
     );
 
     deployment.gce.blockDeviceMapping =  {
       "${gce_dev_prefix}${config.deployment.gce.machineName}-root" = {
           image = config.deployment.gce.bootstrapImage;
-          publicImageProject = image-family."project";
+          publicImageProject = imageFamily."project";
           size = config.deployment.gce.rootDiskSize;
           diskType = config.deployment.gce.rootDiskType;
           bootDisk = true;
