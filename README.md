@@ -20,6 +20,11 @@ To start developing on nixops, you can run:
   $ poetry install
   $ poetry shell
 ```
+To view active plugins:
+
+```bash
+nixops list-plugins
+```
 
 and you're ready to go. Run `black`, `mypy`, etc.
 
