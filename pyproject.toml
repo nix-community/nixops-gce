@@ -10,7 +10,7 @@ include = [ "nixops_gcp/nix/*.nix" ]
 python = "^3.7"
 apache-libcloud = "^3.0.0"
 cryptography = "^2.9.0"
-nixops = {git = "https://github.com/NixOS/nixops.git", rev = "master"}
+nixops = {git = "https://github.com/NixOS/nixops.git", rev = "ab0780d7c152f2b4c85529326deab4610a15c428"}
 
 [tool.poetry.dev-dependencies]
 nose = "^1.3.7"
