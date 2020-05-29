@@ -7,7 +7,7 @@ import re
 import libcloud.common.google
 
 from nixops.util import attr_property
-from nixopsgce.gce_common import ResourceDefinition, ResourceState, optional_string, optional_int, optional_bool
+from nixops_gcp.gcp_common import ResourceDefinition, ResourceState, optional_string, optional_int, optional_bool
 
 class GSEResponse(libcloud.common.google.GoogleResponse):
     pass
@@ -78,7 +78,7 @@ class GSEBucketDefinition(ResourceDefinition):
         self.lifecycle = sorted([ parse_lifecycle(x)
                            for x in xml.find("attrs/attr[@name='lifecycle']/list") ])
 
-        if any( all(v is None for k,v in r.iteritems() if k != 'action')
+        if any( all(v is None for k,v in r.items() if k != 'action')
                 for r in self.lifecycle):
             raise Exception("Bucket '{0}' object lifecycle management "
                             "rule must specify at least one condition"

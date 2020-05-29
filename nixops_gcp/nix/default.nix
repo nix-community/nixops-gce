@@ -1,5 +1,5 @@
 {
-  config_exporters = { resources, optionalAttrs, pkgs, ... }: with pkgs.lib ;[
+  config_exporters = { optionalAttrs, ... }: [
     (config: {
       gce = optionalAttrs (config.deployment.targetEnv == "gce") config.deployment.gce;
     })
@@ -7,9 +7,7 @@
   options = [
     ./gce.nix
   ];
-  resources = { evalResources, zipAttrs, resourcesByType, ...}:
-  with pkgs.lib;
-  rec { # Google Compute resources
+  resources = { evalResources, zipAttrs, resourcesByType, ...}: {
     gceDisks = evalResources ./gce-disk.nix (zipAttrs resourcesByType.gceDisks or []);
     gceStaticIPs = evalResources ./gce-static-ip.nix (zipAttrs resourcesByType.gceStaticIPs or []);
     gceNetworks = evalResources ./gce-network.nix (zipAttrs resourcesByType.gceNetworks or []);

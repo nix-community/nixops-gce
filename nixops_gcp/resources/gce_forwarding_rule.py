@@ -6,10 +6,10 @@ import os
 import libcloud.common.google
 
 
-from nixopsgce.resources.gce_static_ip import GCEStaticIPState
-from nixopsgce.resources.gce_target_pool import GCETargetPoolState
+from nixops_gcp.resources.gce_static_ip import GCEStaticIPState
+from nixops_gcp.resources.gce_target_pool import GCETargetPoolState
 from nixops.util import attr_property
-from nixopsgce.gce_common import ResourceDefinition, ResourceState, optional_string, ensure_not_empty
+from nixops_gcp.gcp_common import ResourceDefinition, ResourceState, optional_string, ensure_not_empty
 
 
 class GCEForwardingRuleDefinition(ResourceDefinition):

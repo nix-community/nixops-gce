@@ -8,11 +8,11 @@ from nixops.nix_expr import Function, RawValue, Call
 
 from nixops.backends import MachineDefinition, MachineState
 
-from nixopsgce.gce_common import ResourceDefinition, ResourceState
-import nixopsgce.resources.gce_static_ip
-import nixopsgce.resources.gce_disk
-import nixopsgce.resources.gce_image
-import nixopsgce.resources.gce_network
+from nixops_gcp.gcp_common import ResourceDefinition, ResourceState
+import nixops_gcp.resources.gce_static_ip
+import nixops_gcp.resources.gce_disk
+import nixops_gcp.resources.gce_image
+import nixops_gcp.resources.gce_network
 
 import libcloud.common.google
 from libcloud.compute.types import NodeState
@@ -66,7 +66,8 @@ class GCEDefinition(MachineDefinition, ResourceDefinition):
                 'disk': self.get_option_value(xml, 'disk', 'resource', optional = True),
                 'disk_name': opt_disk_name(self.get_option_value(xml, 'disk_name', str, optional = True)),
                 'snapshot': self.get_option_value(xml, 'snapshot', str, optional = True),
-                'image': self.get_option_value(xml, 'image', 'resource', optional = True),
+                'image': self.get_option_value(xml, 'image', str, optional = True),
+                'publicImageProject' : self.get_option_value(xml, 'publicImageProject', str, optional = True),
                 'size': self.get_option_value(xml, 'size', int, optional = True),
                 'type': self.get_option_value(xml, 'diskType', str),
                 'deleteOnTermination': self.get_option_value(xml, 'deleteOnTermination', bool),
@@ -84,7 +85,7 @@ class GCEDefinition(MachineDefinition, ResourceDefinition):
         self.block_device_mapping = { k.get("name"): parse_block_device(k)
                                       for k in x.findall("attr[@name='blockDeviceMapping']/attrs/attr") }
 
-        boot_devices = [k for k,v in self.block_device_mapping.iteritems() if v['bootDisk']]
+        boot_devices = [k for k,v in self.block_device_mapping.items() if v['bootDisk']]
         if len(boot_devices) == 0:
             raise Exception("machine {0} must have a boot device.".format(self.name))
         if len(boot_devices) > 1:
@@ -175,7 +176,7 @@ class GCEState(MachineState, ResourceState):
     def gen_metadata(self, metadata):
         return {
           'kind': 'compute#metadata',
-          'items': [ {'key': k, 'value': v} for k,v in metadata.iteritems() ]
+          'items': [ {'key': k, 'value': v} for k,v in metadata.items() ]
         }
 
     def update_block_device_mapping(self, k, v):
@@ -203,7 +204,7 @@ class GCEState(MachineState, ResourceState):
     def _node_deleted(self):
         self.vm_id = None
         self.state = self.STOPPED
-        for k,v in self.block_device_mapping.iteritems():
+        for k,v in self.block_device_mapping.items():
             v['needsAttach'] = True
             self.update_block_device_mapping(k, v)
 
@@ -299,7 +300,7 @@ class GCEState(MachineState, ResourceState):
 
                     attached_disk_names = [d.get("deviceName", None) for d in node.extra['disks'] ]
                     # check that all disks are attached
-                    for k, v in self.block_device_mapping.iteritems():
+                    for k, v in self.block_device_mapping.items():
                         disk_name = v['disk_name'] or v['disk']
                         is_attached = disk_name in attached_disk_names
                         if not is_attached  and not v.get('needsAttach', False):
@@ -312,8 +313,8 @@ class GCEState(MachineState, ResourceState):
                             self.update_block_device_mapping(k, v)
 
                     # check that no extra disks are attached
-                    defn_disk_names  = [v['disk_name'] or v['disk'] for k,v in defn.block_device_mapping.iteritems()]
-                    state_disk_names = [v['disk_name'] or v['disk'] for k,v in self.block_device_mapping.iteritems()]
+                    defn_disk_names  = [v['disk_name'] or v['disk'] for k,v in defn.block_device_mapping.items()]
+                    state_disk_names = [v['disk_name'] or v['disk'] for k,v in self.block_device_mapping.items()]
                     unexpected_disks = list( set(attached_disk_names) - set(defn_disk_names) - set(state_disk_names) )
                     if unexpected_disks:
                         self.warn("unexpected disk(s) {0} are attached to this instance; "
@@ -330,7 +331,7 @@ class GCEState(MachineState, ResourceState):
 
             # check that the disks that should exist do exist
             # and that the disks we expected to create don't exist yet
-            for k,v in defn.block_device_mapping.iteritems():
+            for k,v in defn.block_device_mapping.items():
                 disk_name = v['disk_name'] or v['disk']
                 try:
                     disk = self.connect().ex_get_volume(disk_name, v.get('region', None) )
@@ -346,20 +347,49 @@ class GCEState(MachineState, ResourceState):
                         self.update_block_device_mapping(k, None)
 
         # create missing disks
-        for k, v in defn.block_device_mapping.iteritems():
+        for k, v in defn.block_device_mapping.items():
             if k in self.block_device_mapping: continue
             if v['disk'] is None:
                 extra_msg = ( " from snapshot '{0}'".format(v['snapshot']) if v['snapshot']
                          else " from image '{0}'".format(v['image'])       if v['image']
+                         else " marked as public. "                        if v['publicImageProject']
                          else "" )
                 self.log("creating GCE disk of {0} GiB{1}..."
                          .format(v['size'] if v['size'] else "auto", extra_msg))
                 v['region'] = defn.region
+
+                # Retrieve GCENodeImage based on family name and project
+                if v['publicImageProject']:
+                    try:
+                        img = self.connect().ex_get_image_from_family(
+                                  image_family=v['image'],
+                                  ex_project_list=[v['publicImageProject']],
+                                  ex_standard_projects=False,
+                              )
+                    except libcloud.common.google.ResourceNotFoundError:
+                        raise Exception("Image family {0} not found in project {1}".format(
+                            v['image'], v['publicImageProject']
+                        ))
+                    except libcloud.common.google.GoogleBaseError as ex:
+                        if ex.value['reason'] == 'forbidden':
+                            raise Exception("Image from image family {0} has not been set to public in project {1}".format(
+                                v['image'], v['publicImageProject']
+                            ))
+                        else:
+                            raise Exception(ex.value['message'])
+                else:
+                    img = v['image']
                 try:
-                    self.connect().create_volume(v['size'], v['disk_name'], v['region'],
-                                                snapshot=v['snapshot'], image=v['image'],
-                                                ex_disk_type="pd-" + v.get('type', 'standard'),
-                                                use_existing=False)
+                    self.connect().create_volume(
+                        size=v['size'],
+                        name=v['disk_name'],
+                        location=v['region'],
+                        snapshot=v['snapshot'],
+                        image=img,
+                        use_existing=False,
+                        ex_disk_type="pd-" + v.get('type', 'standard'),
+                        ex_image_family=None,
+                    )
                 except AttributeError:
                     # libcloud bug: The region we're trying to create the disk
                     # in doesn't exist.
@@ -386,7 +416,7 @@ class GCEState(MachineState, ResourceState):
                 recreate = True
                 self.warn('change of service account requires a reboot')
 
-            for k, v in self.block_device_mapping.iteritems():
+            for k, v in self.block_device_mapping.items():
                 defn_v = defn.block_device_mapping.get(k, None)
                 if defn_v and not v.get('needsAttach', False):
                     if v['bootDisk'] != defn_v['bootDisk']:
@@ -409,7 +439,7 @@ class GCEState(MachineState, ResourceState):
 
         if not self.vm_id:
             self.log("creating {0}...".format(self.full_name))
-            boot_disk = next((v for k,v in defn.block_device_mapping.iteritems() if v.get('bootDisk', False)), None)
+            boot_disk = next((v for v in defn.block_device_mapping.values() if v.get('bootDisk', False)), None)
             if not boot_disk:
                 raise Exception("no boot disk found for {0}".format(self.full_name))
             try:
@@ -447,7 +477,7 @@ class GCEState(MachineState, ResourceState):
             self.log("got public IP: {0}".format(self.public_ipv4))
             known_hosts.add(self.public_ipv4, self.public_host_key)
             self.private_ipv4 = node.private_ips[0]
-            for k,v in self.block_device_mapping.iteritems():
+            for k,v in self.block_device_mapping.items():
                 v['needsAttach'] = True
                 self.update_block_device_mapping(k, v)
             # set scheduling config here instead of triggering an update using None values
@@ -729,7 +759,7 @@ class GCEState(MachineState, ResourceState):
             if node.state == NodeState.RUNNING:
                 # check that all disks are attached
                 res.disks_ok = True
-                for k, v in self.block_device_mapping.iteritems():
+                for v in self.block_device_mapping.values():
                     disk_name = v['disk_name'] or v['disk']
                     if all(d.get("deviceName", None) != disk_name for d in node.extra['disks']):
                         res.disks_ok = False
@@ -761,10 +791,10 @@ class GCEState(MachineState, ResourceState):
     def create_after(self, resources, defn):
         # Just a check for all GCE resource classes
         return {r for r in resources if
-                isinstance(r, nixopsgce.resources.gce_static_ip.GCEStaticIPState) or
-                isinstance(r, nixopsgce.resources.gce_disk.GCEDiskState) or
-                isinstance(r, nixopsgce.resources.gce_image.GCEImageState) or
-                isinstance(r, nixopsgce.resources.gce_network.GCENetworkState)}
+                isinstance(r, nixops_gcp.resources.gce_static_ip.GCEStaticIPState) or
+                isinstance(r, nixops_gcp.resources.gce_disk.GCEDiskState) or
+                isinstance(r, nixops_gcp.resources.gce_image.GCEImageState) or
+                isinstance(r, nixops_gcp.resources.gce_network.GCENetworkState)}
 
 
     def backup(self, defn, backup_id, devices=[]):
@@ -776,7 +806,7 @@ class GCEState(MachineState, ResourceState):
 
         backup = {}
         _backups = self.backups
-        for k, v in self.block_device_mapping.iteritems():
+        for k, v in self.block_device_mapping.items():
             disk_name = v['disk_name'] or v['disk']
             if devices == [] or k in devices or disk_name in devices:
                 volume = self.connect().ex_get_volume(disk_name, v.get('region', None))
@@ -853,7 +883,7 @@ class GCEState(MachineState, ResourceState):
         if not backup_id in _backups.keys():
             self.warn('backup {0} not found; skipping'.format(backup_id))
         else:
-            for d_name, snapshot_id in _backups[backup_id].iteritems():
+            for d_name, snapshot_id in _backups[backup_id].items():
                 try:
                     self.log('removing snapshot {0}'.format(snapshot_id))
                     self.connect().ex_get_snapshot(snapshot_id).destroy()
@@ -866,7 +896,7 @@ class GCEState(MachineState, ResourceState):
     def get_backups(self):
         self.connect()
         backups = {}
-        for b_id, snapshots in self.backups.iteritems():
+        for b_id, snapshots in self.backups.items():
             backups[b_id] = {}
             backup_status = "complete"
             info = []
@@ -884,8 +914,8 @@ class GCEState(MachineState, ResourceState):
                     except libcloud.common.google.ResourceNotFoundError:
                         info.append("{0} - {1} - {2} - snapshot has disappeared".format(self.name, disk_name, snapshot_id))
                         backup_status = "unavailable"
-            for d_name, s_id in snapshots.iteritems():
-                if not any(d_name == v['disk_name'] or d_name == v['disk'] for k,v in self.block_device_mapping.iteritems()):
+            for d_name, s_id in snapshots.items():
+                if not any(d_name == v['disk_name'] or d_name == v['disk'] for k,v in self.block_device_mapping.items()):
                     info.append("{0} - {1} - {2} - a snapshot of a disk that is not or no longer deployed".format(self.name, d_name, s_id))
             backups[b_id]['status'] = backup_status
             backups[b_id]['info'] = info

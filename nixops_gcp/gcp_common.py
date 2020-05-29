@@ -179,7 +179,7 @@ class ResourceState(nixops.resources.ResourceState):
 
     def warn_not_supposed_to_exist(self, resource_name = None,
                               valuable_data = False, valuable_resource = False):
-        valuables = " or ".join(filter(None, [valuable_data and "data", valuable_resource and "resource"]))
+        valuables = " or ".join([d for d in [valuable_data and "data", valuable_resource and "resource"] if d])
         valuable_msg = ( "; however, this also could be a resource name collision, "
                          "and valuable {0} could be lost; before proceeding, "
                          "please ensure that this isn't so".format(valuables)

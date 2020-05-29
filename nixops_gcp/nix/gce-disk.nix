@@ -55,6 +55,13 @@ with import <nixops/lib.nix> lib;
       '';
     };
 
+    publicImageProject = mkOption {
+      default = null;
+      example = "nixos-gcp-project";
+      type = types.nullOr types.str;
+      description = "The parent project containing a GCE image that was made public for all authenticated users.";
+    };
+
     diskType = mkOption {
       default = "standard";
       type = types.addCheck types.str

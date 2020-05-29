@@ -86,6 +86,13 @@ let
         '';
       };
 
+      publicImageProject = mkOption {
+        default = null;
+        example = "nixos-gcp-project";
+        type = types.nullOr types.str;
+        description = "The parent project containing a GCE image that was made public.";
+      };
+
       size = mkOption {
         default = null;
         type = types.nullOr types.int;
@@ -193,7 +200,7 @@ let
     options = {
       gce = mkOption {
         default = null;
-        type = with types; uniq (nullOr (submodule gceDiskOptions));
+        type = with types; (nullOr (submodule gceDiskOptions));
         description = ''
           GCE disk to be attached to this mount point.  This is
           shorthand for defining a separate
@@ -210,6 +217,12 @@ let
       }";
     };
   };
+
+  nixosVersion = builtins.substring 0 5 (config.system.nixos.version or config.system.nixosVersion);
+
+  imageFamily = import ./gce-images.nix;
+  # To be changed to
+  # imageFamily = import <nixpkgs/nixos/modules/virtualisation/gce-images.nix>;
 
 in
 {
@@ -240,7 +253,7 @@ in
         type = types.str;
         description = ''
           GCE instance type. See <link
-          xlink:href='https://developers.google.com/compute/pricing'/> for a
+          xlink:href='https://cloud.google.com/compute/all-pricing'/> for a
           list of valid instance types.
         '';
       };
@@ -381,7 +394,7 @@ in
             (v: elem v [ "MIGRATE" "TERMINATE" ]);
         description = ''
           Defines the maintenance behavior for this instance. For more information, see <link
-          xlink:href='https://developers.google.com/compute/docs/instances#onhostmaintenance'/>.
+          xlink:href='https://cloud.google.com/compute/docs/instances#onhostmaintenance'/>.
 
           Allowed values are: "MIGRATE" to let GCE automatically migrate your
           instances out of the way of maintenance events and
@@ -395,7 +408,7 @@ in
         description = ''
           Whether the instance is preemptible.
           For more information, see <link
-          xlink:href='https://developers.google.com/compute/docs/instances#onhostmaintenance'/>.
+          xlink:href='https://cloud.google.com/compute/docs/instances/preemptible'/>.
         '';
       };
 
@@ -412,9 +425,15 @@ in
   config = mkIf (config.deployment.targetEnv == "gce") {
     nixpkgs.system = mkOverride 900 "x86_64-linux";
 
+    # Using NixOs public GCE images by default
+    deployment.gce.bootstrapImage = mkDefault (
+      imageFamily."${nixosVersion}" or imageFamily.latest
+    );
+
     deployment.gce.blockDeviceMapping =  {
       "${gce_dev_prefix}${config.deployment.gce.machineName}-root" = {
           image = config.deployment.gce.bootstrapImage;
+          publicImageProject = imageFamily."project";
           size = config.deployment.gce.rootDiskSize;
           diskType = config.deployment.gce.rootDiskType;
           bootDisk = true;

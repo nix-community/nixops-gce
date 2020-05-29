@@ -8,7 +8,7 @@ from libcloud.compute.types import Provider
 from libcloud.compute.providers import get_driver
 
 from nixops.util import attr_property
-from nixopsgce.gce_common import ResourceDefinition, ResourceState
+from nixops_gcp.gcp_common import ResourceDefinition, ResourceState
 
 
 def normalize_list(tags):
@@ -160,7 +160,7 @@ class GCENetworkState(ResourceState):
         # handle firewall rules
         def trans_allowed(attrs):
           return [ dict( [( "IPProtocol", proto )] + ([("ports", ports )] if ports is not None else []) )
-                   for proto, ports in attrs.iteritems() ]
+                   for proto, ports in attrs.items() ]
 
         if check:
             firewalls = [ f for f in self.connect().ex_list_firewalls()
@@ -168,7 +168,7 @@ class GCENetworkState(ResourceState):
 
             # delete stray rules and mark changed ones for update
             for fw in firewalls:
-                fw_name = next( (k for (k,v) in self.firewall.iteritems() if fw.name == self.firewall_name(k)), None)
+                fw_name = next( (k for (k,v) in self.firewall.items() if fw.name == self.firewall_name(k)), None)
                 if fw_name:
                     rule = self.firewall[fw_name]
 
@@ -191,13 +191,13 @@ class GCENetworkState(ResourceState):
                     fw.destroy()
 
             # find missing firewall rules
-            for k, v in self.firewall.iteritems():
+            for k, v in self.firewall.items():
                 if not any(fw.name == self.firewall_name(k) for fw in firewalls):
                     self.warn("firewall rule '{0}' has disappeared...".format(k))
                     self.update_firewall(k, None)
 
         # add new and update changed
-        for k, v in defn.firewall.iteritems():
+        for k, v in defn.firewall.items():
             if k in self.firewall:
                 if v == self.firewall[k]: continue
                 self.log("updating {0}...".format(self.firewall_name(k)))
