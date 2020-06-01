@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from typing import Dict, Union, Optional
 import time
 
 from nixops import known_hosts
@@ -12,7 +13,7 @@ from nixops.util import (
 )
 from nixops.nix_expr import Function, RawValue, Call
 
-from nixops.backends import MachineDefinition, MachineState
+from nixops.backends import MachineDefinition, MachineState, MachineOptions
 
 from nixops_gcp.gcp_common import ResourceDefinition, ResourceState
 import nixops_gcp.resources.gce_static_ip
@@ -22,6 +23,12 @@ import nixops_gcp.resources.gce_network
 
 import libcloud.common.google
 from libcloud.compute.types import NodeState
+
+from .options import GceOptions, GCEDiskOptions
+
+
+class GCEMachineOptions(MachineOptions):
+    gce: GceOptions
 
 
 class GCEDefinition(MachineDefinition, ResourceDefinition):
@@ -33,72 +40,48 @@ class GCEDefinition(MachineDefinition, ResourceDefinition):
     def get_type(cls):
         return "gce"
 
-    def __init__(self, xml, config):
-        MachineDefinition.__init__(self, xml, config)
-        x = xml.find("attrs/attr[@name='gce']/attrs")
-        assert x is not None
-        self.copy_option(x, "machineName", str)
+    def __init__(self, name, config):
+        super().__init__(name, config)
 
-        self.copy_option(x, "region", str)
-        self.copy_option(x, "instanceType", str, empty=False)
-        self.copy_option(x, "project", str)
-        self.copy_option(x, "serviceAccount", str)
-        self.copy_option(x, "canIpForward", bool, optional=True)
-        self.access_key_path = self.get_option_value(x, "accessKey", str)
+        self.machine_name = self.config.machineName
 
-        self.copy_option(x, "tags", "strlist")
-        self.metadata = {
-            k.get("name"): k.find("string").get("value")
-            for k in x.findall("attr[@name='metadata']/attrs/attr")
-        }
+        self.region = self.config.gce.region
 
-        scheduling = x.find("attr[@name='scheduling']")
-        self.copy_option(scheduling, "automaticRestart", bool)
-        self.copy_option(scheduling, "preemptible", bool)
-        self.copy_option(scheduling, "onHostMaintenance", str)
+        self.instance_type = self.config.gce.instanceType
+        self.project = self.config.gce.project
+        self.service_account = self.config.gce.serviceAccount
 
-        instance_service_account = x.find("attr[@name='instanceServiceAccount']")
-        self.copy_option(instance_service_account, "email", str)
-        self.copy_option(instance_service_account, "scopes", "strlist")
+        self.can_ip_forward = self.config.gce.canIpForward
 
-        self.ipAddress = self.get_option_value(
-            x, "ipAddress", "resource", optional=True
+        self.access_key_path = self.config.gce.accessKey
+
+        self.tags = list(self.config.gce.tags)
+
+        self.metadata: Dict[str, str] = dict(self.config.gce.metadata)
+
+        scheduling = dict(self.config.gce.scheduling)
+
+        instance_service_account: Dict[str, Union[str, List[str]]] = {}
+        instance_service_account["email"] = self.config.gce.instanceServiceAccount.email
+        instance_service_account["scopes"] = list(
+            self.config.gce.instanceServiceAccount.email
         )
-        self.copy_option(x, "network", "resource", optional=True)
-        self.copy_option(x, "subnet", str, optional=True)
-        self.labels = {
-            k.get("name"): k.find("string").get("value")
-            for k in x.findall("attr[@name='labels']/attrs/attr")
-        }
 
-        def opt_disk_name(dname):
+        self.ipAddress = self.config.gce.ipAddress
+        self.network = self.config.gce.network
+        self.subnet = self.config.gce.subnet
+        self.labels = dict(self.config.gce.labels)
+
+        def opt_disk_name(dname: Optional[str]) -> Optional[str]:
             return (
                 "{0}-{1}".format(self.machine_name, dname)
                 if dname is not None
                 else None
             )
 
-        def parse_block_device(xml):
-            result = {
-                "disk": self.get_option_value(xml, "disk", "resource", optional=True),
-                "disk_name": opt_disk_name(
-                    self.get_option_value(xml, "disk_name", str, optional=True)
-                ),
-                "snapshot": self.get_option_value(xml, "snapshot", str, optional=True),
-                "image": self.get_option_value(xml, "image", str, optional=True),
-                "publicImageProject": self.get_option_value(
-                    xml, "publicImageProject", str, optional=True
-                ),
-                "size": self.get_option_value(xml, "size", int, optional=True),
-                "type": self.get_option_value(xml, "diskType", str),
-                "deleteOnTermination": self.get_option_value(
-                    xml, "deleteOnTermination", bool
-                ),
-                "readOnly": self.get_option_value(xml, "readOnly", bool),
-                "bootDisk": self.get_option_value(xml, "bootDisk", bool),
-                "encrypt": self.get_option_value(xml, "encrypt", bool),
-                "passphrase": self.get_option_value(xml, "passphrase", str),
-            }
+        def parse_block_device(diskConfig: GCEDiskOptions) -> Dict:
+            result = dict(diskConfig)
+            result["disk_name"] = opt_disk_name(diskConfig.disk_name)
             if not (result["disk"] or result["disk_name"]):
                 raise Exception(
                     "{0}: blockDeviceMapping item must specify either an "
@@ -109,11 +92,11 @@ class GCEDefinition(MachineDefinition, ResourceDefinition):
             return result
 
         self.block_device_mapping = {
-            k.get("name"): parse_block_device(k)
-            for k in x.findall("attr[@name='blockDeviceMapping']/attrs/attr")
+            k: parse_block_device(v)
+            for k, v in self.config.gce.blockDeviceMapping.items()
         }
 
-        boot_devices = [
+        boot_devices: List[str] = [
             k for k, v in self.block_device_mapping.items() if v["bootDisk"]
         ]
         if len(boot_devices) == 0:
@@ -127,7 +110,7 @@ class GCEDefinition(MachineDefinition, ResourceDefinition):
         return "{0} [{1}]".format(self.get_type(), self.region or "???")
 
 
-class GCEState(MachineState, ResourceState):
+class GCEState(MachineState[GCEDefinition], ResourceState):
     """
     State of a Google Compute Engine machine.
     """
