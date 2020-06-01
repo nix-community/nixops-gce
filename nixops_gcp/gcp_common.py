@@ -33,10 +33,10 @@ def ensure_positive(value, name):
 
 
 class ResourceDefinition(nixops.resources.ResourceDefinition):
-    def __init__(self, xml):
-        nixops.resources.ResourceDefinition.__init__(self, xml)
+    def __init__(self, name, config):
+        super().__init__(name, config)
 
-        res_name = self.get_option_value(xml, "name", str)
+        res_name = self.config.name
         if (
             len(res_name) > 63
             or re.match("[a-z]([-a-z0-9]{0,61}[a-z0-9])?$", res_name) is None
@@ -49,60 +49,10 @@ class ResourceDefinition(nixops.resources.ResourceDefinition):
                 "except the last character, which cannot be a dash.".format(res_name)
             )
 
-        self.copy_option(xml, "project", str)
-        self.copy_option(xml, "serviceAccount", str)
-        self.access_key_path = self.get_option_value(xml, "accessKey", str)
 
-    def get_option_value(
-        self, xml, name, type, optional=False, empty=True, positive=False
-    ):
-        types = {
-            str: "/string",
-            int: "/int",
-            bool: "/bool",
-            "resource": "",
-            "strlist": "/list",
-        }
-        xml_ = xml.find("attrs")
-        xml__ = xml_ if xml_ is not None else xml
-        elem = xml__.find("attr[@name='%s']%s" % (name, types[type]))
-
-        if type == str:
-            value = optional_string(elem)
-        elif type == int:
-            value = optional_int(elem)
-        elif type == bool:
-            value = optional_bool(elem)
-        elif type == "resource":
-            value = optional_string(elem.find("string")) or self.get_option_value(
-                elem, "name", str, optional=True
-            )
-        elif type == "strlist":
-            value = (
-                sorted([s.get("value") for s in elem.findall("string")])
-                if elem is not None
-                else None
-            )
-
-        if not optional and value is None:
-            raise Exception("option {0} must be set".format(name))
-
-        if not empty:
-            ensure_not_empty(value, name)
-        if positive:
-            ensure_positive(value, name)
-        return value
-
-    # store the option value in a property, following the naming conventions
-    # by converting "optionName" to "option_name"
-    def copy_option(self, xml, name, type, optional=False, empty=True, positive=False):
-        setattr(
-            self,
-            re.sub(r"([a-z])([A-Z])", r"\1_\2", name).lower(),
-            self.get_option_value(
-                xml, name, type, optional=optional, empty=empty, positive=positive
-            ),
-        )
+        self.project = self.config.project
+        self.service_account = self.config.serviceAccount
+        self.access_key_path = self.config.accessKey
 
 
 class ResourceState(nixops.resources.ResourceState):
