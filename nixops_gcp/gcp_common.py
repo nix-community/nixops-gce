@@ -49,7 +49,6 @@ class ResourceDefinition(nixops.resources.ResourceDefinition):
                 "except the last character, which cannot be a dash.".format(res_name)
             )
 
-
         self.project = self.config.project
         self.service_account = self.config.serviceAccount
         self.access_key_path = self.config.accessKey
