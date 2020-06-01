@@ -7,10 +7,13 @@ import libcloud.common.google
 from nixops import backends
 from nixops.util import attr_property
 from nixops_gcp.gcp_common import ResourceDefinition, ResourceState
+from .types.gce_routes import GceRoutesOptions
 
 
 class GCERouteDefinition(ResourceDefinition):
     """Definition of a GCE Route"""
+
+    config: GceRoutesOptions
 
     @classmethod
     def get_type(cls):
@@ -20,15 +23,15 @@ class GCERouteDefinition(ResourceDefinition):
     def get_resource_type(cls):
         return "gceRoutes"
 
-    def __init__(self, xml):
-        ResourceDefinition.__init__(self, xml)
-        self.route_name = self.get_option_value(xml, "name", str)
-        self.description = self.get_option_value(xml, "description", str, optional=True)
-        self.network = self.get_option_value(xml, "network", str)
-        self.priority = self.get_option_value(xml, "priority", int)
-        self.nextHop = self.get_option_value(xml, "nextHop", str, optional=True)
-        self.destination = self.get_option_value(xml, "destination", str)
-        self.tags = self.get_option_value(xml, "tags", "strlist", optional=True)
+    def __init__(self, name, config):
+        super().__init__(name, config)
+        self.route_name = self.config.name
+        self.description = self.config.description
+        self.network = self.config.network
+        self.priority = self.config.priority
+        self.nextHop = self.config.nextHop
+        self.destination = self.config.destination
+        self.tags = list(tags) if self.tags is not None else None
 
     def show_type(self):
         return "{0} [{1}]".format(self.get_type(), self.name)
