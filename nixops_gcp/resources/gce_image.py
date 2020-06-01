@@ -7,10 +7,13 @@ import libcloud.common.google
 
 from nixops.util import attr_property
 from nixops_gcp.gcp_common import ResourceDefinition, ResourceState
+from .types.gce_image import GceImageOptions
 
 
 class GCEImageDefinition(ResourceDefinition):
     """Definition of a GCE Image"""
+
+    config: GceImageOptions
 
     @classmethod
     def get_type(cls):
@@ -20,12 +23,11 @@ class GCEImageDefinition(ResourceDefinition):
     def get_resource_type(cls):
         return "gceImages"
 
-    def __init__(self, xml):
-        ResourceDefinition.__init__(self, xml)
-
-        self.image_name = self.get_option_value(xml, "name", str)
-        self.copy_option(xml, "sourceUri", str)
-        self.copy_option(xml, "description", str, optional=True)
+    def __init__(self, name, config):
+        super().__init__(name, config)
+        self.image_name = self.config.name
+        self.source_uri = self.config.sourceUri
+        self.description = self.config.description
 
     def show_type(self):
         return self.get_type()
