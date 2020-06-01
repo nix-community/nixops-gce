@@ -8,10 +8,13 @@ import libcloud.common.google
 from nixops_gcp.resources.gce_http_health_check import GCEHTTPHealthCheckState
 from nixops.util import attr_property
 from nixops_gcp.gcp_common import ResourceDefinition, ResourceState, optional_string
+from .types.gce_target_pool import GceTargetPoolOptions
 
 
 class GCETargetPoolDefinition(ResourceDefinition):
     """Definition of a GCE Target Pool"""
+
+    config: GceTargetPoolOptions
 
     @classmethod
     def get_type(cls):
@@ -21,30 +24,26 @@ class GCETargetPoolDefinition(ResourceDefinition):
     def get_resource_type(cls):
         return "gceTargetPools"
 
-    def __init__(self, xml):
-        ResourceDefinition.__init__(self, xml)
+    def __init__(self, name, config):
+        super().__init__(name, config)
 
-        self.targetpool_name = self.get_option_value(xml, "name", str)
-        self.copy_option(xml, "region", str)
-        self.copy_option(xml, "healthCheck", "resource", optional=True)
+        self.targetpool_name = self.config.name
+        self.region = self.config.region
+        self.health_check = self.config.healthCheck
 
-        def machine_to_url(xml):
-            spec = xml.find("attr[@name='gce']")
-            if spec is None:
-                return None
-            return "https://www.googleapis.com/compute/v1/projects/{0}/zones/{1}/instances/{2}".format(
-                self.project,
-                spec.find("attrs/attr[@name='region']/string").get("value"),
-                spec.find("attrs/attr[@name='machineName']/string").get("value"),
-            )
+        # Previously this option accepted mixed types
+        # def machine_to_url(xml):
+        #     spec = xml.find("attr[@name='gce']")
+        #     if spec is None:
+        #         return None
+        #     return "https://www.googleapis.com/compute/v1/projects/{0}/zones/{1}/instances/{2}".format(
+        #         self.project,
+        #         spec.find("attrs/attr[@name='region']/string").get("value"),
+        #         spec.find("attrs/attr[@name='machineName']/string").get("value"),
+        #     )
 
-        mlist = xml.find("attrs/attr[@name='machines']/list")
-        self.machines = list(
-            set(
-                [machine_to_url(e) for e in mlist.findall("attrs")]
-                + [e.get("value") for e in mlist.findall("string")]
-            )
-        )
+        # Previously mixed types was accepted
+        self.machines = list(self.config.machines)
 
         if not all(m for m in self.machines):
             raise Exception(
