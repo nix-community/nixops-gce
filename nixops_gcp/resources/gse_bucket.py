@@ -15,6 +15,9 @@ from nixops_gcp.gcp_common import (
     optional_bool,
 )
 
+from typing import Dict, Optional
+from .types.gse_bucket import GseBucketOptions, LifecycleOptions, ConditionsOptions
+
 
 class GSEResponse(libcloud.common.google.GoogleResponse):
     pass
@@ -41,6 +44,8 @@ class GSEConnection(libcloud.common.google.GoogleBaseConnection):
 class GSEBucketDefinition(ResourceDefinition):
     """Definition of a GSE Bucket"""
 
+    config: GseBucketOptions
+
     @classmethod
     def get_type(cls):
         return "gse-bucket"
@@ -49,34 +54,18 @@ class GSEBucketDefinition(ResourceDefinition):
     def get_resource_type(cls):
         return "gseBuckets"
 
-    def __init__(self, xml):
-        ResourceDefinition.__init__(self, xml)
+    def __init__(self, name, config):
+        super().__init__(name, config)
 
-        self.bucket_name = self.get_option_value(xml, "name", str)
+        self.bucket_name = self.config.name
 
-        self.cors = sorted(
-            [
-                {
-                    "max_age_seconds": self.get_option_value(
-                        x, "maxAgeSeconds", int, optional=True
-                    ),
-                    "methods": self.get_option_value(x, "methods", "strlist"),
-                    "origins": self.get_option_value(x, "origins", "strlist"),
-                    "response_headers": self.get_option_value(
-                        x, "responseHeaders", "strlist"
-                    ),
-                }
-                for x in xml.find("attrs/attr[@name='cors']/list")
-            ]
-        )
+        self.cors = dict(self.config.cors)
+        self.cors["methods"] = list(self.config.cors.methods)
+        self.cors["origins"] = list(self.config.cors.origins)
 
-        def parse_lifecycle(x):
-            cond_x = x.find("attr[@name='conditions']")
-
-            created_before = self.get_option_value(
-                cond_x, "createdBefore", str, optional=True
-            )
-
+        def parse_lifecycle(x: LifecycleOptions) -> Dict:
+            created_before = x.conditions.createdBefore
+            normalized_created_before: Optional[str] = None
             if created_before:
                 m = re.match(r"^(\d*)-(\d*)-(\d*)$", created_before)
                 if m:
@@ -87,22 +76,15 @@ class GSEBucketDefinition(ResourceDefinition):
                     raise Exception(
                         "createdBefore must be a date in 'YYYY-MM-DD' format"
                     )
-            else:
-                normalized_created_before = None
-
             return {
-                "action": self.get_option_value(x, "action", str),
-                "age": self.get_option_value(cond_x, "age", int, optional=True),
-                "is_live": self.get_option_value(cond_x, "isLive", bool, optional=True),
+                "action": x.action,
+                "age": x.conditions.age,
+                "is_live": x.conditions.isLive,
                 "created_before": normalized_created_before,
-                "number_of_newer_versions": self.get_option_value(
-                    cond_x, "numberOfNewerVersions", int, optional=True
-                ),
+                "number_of_newer_versions": x.conditions.numberOfNewerVersions,
             }
 
-        self.lifecycle = sorted(
-            [parse_lifecycle(x) for x in xml.find("attrs/attr[@name='lifecycle']/list")]
-        )
+        self.lifecycle = [parse_lifecycle(x) for x in self.config.lifecycle]
 
         if any(
             all(v is None for k, v in r.items() if k != "action")
@@ -113,23 +95,15 @@ class GSEBucketDefinition(ResourceDefinition):
                 "rule must specify at least one condition".format(self.bucket_name)
             )
 
-        logx = xml.find("attrs/attr[@name='logging']")
-        self.copy_option(logx, "logBucket", "resource", optional=True)
-        self.copy_option(logx, "logObjectPrefix", str, optional=True)
+        self.log_bucket = self.config.logging.logBucket
+        self.log_object_prefix = self.config.logging.logObjectPrefix
 
-        self.region = self.get_option_value(xml, "location", str)
-        self.copy_option(xml, "storageClass", str)
-        self.versioning_enabled = self.get_option_value(
-            xml.find("attrs/attr[@name='versioning']"), "enabled", bool
-        )
+        self.region = self.config.location
+        self.storage_class = self.config.storageClass
+        self.versioning_enabled = self.config.versioning.enabled
 
-        webx = xml.find("attrs/attr[@name='website']")
-        self.website_main_page_suffix = self.get_option_value(
-            webx, "mainPageSuffix", str, optional=True
-        )
-        self.website_not_found_page = self.get_option_value(
-            webx, "notFoundPage", str, optional=True
-        )
+        self.website_main_page_suffix = self.config.website.mainPageSuffix
+        self.website_not_found_page = self.config.website.notFoundPage
 
     def show_type(self):
         return "{0}".format(self.get_type())
