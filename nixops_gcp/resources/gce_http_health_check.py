@@ -13,10 +13,13 @@ from nixops_gcp.gcp_common import (
     ensure_not_empty,
     ensure_positive,
 )
+from .types.gce_http_health_check import GceHttpHealthCheckOptions
 
 
 class GCEHTTPHealthCheckDefinition(ResourceDefinition):
     """Definition of a GCE HTTP Health Check"""
+
+    config: GceHttpHealthCheckOptions
 
     @classmethod
     def get_type(cls):
@@ -26,24 +29,17 @@ class GCEHTTPHealthCheckDefinition(ResourceDefinition):
     def get_resource_type(cls):
         return "gceHTTPHealthChecks"
 
-    def __init__(self, xml):
-        ResourceDefinition.__init__(self, xml)
-
-        self.healthcheck_name = self.get_option_value(xml, "name", str)
-        self.description = self.get_option_value(xml, "description", str, optional=True)
-        self.host = self.get_option_value(xml, "host", str, optional=True)
-        self.path = self.get_option_value(xml, "path", str, empty=False)
-        self.port = self.get_option_value(xml, "port", int, positive=True)
-        self.check_interval = self.get_option_value(
-            xml, "checkInterval", int, positive=True
-        )
-        self.timeout = self.get_option_value(xml, "timeout", int, positive=True)
-        self.unhealthy_threshold = self.get_option_value(
-            xml, "unhealthyThreshold", int, positive=True
-        )
-        self.healthy_threshold = self.get_option_value(
-            xml, "healthyThreshold", int, positive=True
-        )
+    def __init__(self, name, config):
+        super().__init__(name, config)
+        self.healthcheck_name = self.config.name
+        self.description = self.config.description
+        self.host = self.config.host
+        self.path = self.config.path
+        self.port = self.config.port
+        self.check_interval = self.config.checkInterval
+        self.timeout = self.config.timeout
+        self.unhealthy_threshold = self.config.unhealthyThreshold
+        self.healthy_threshold = self.config.healthyThreshold
 
     def show_type(self):
         return "{0} [:{1}{2}]".format(self.get_type(), self.port, self.path)
