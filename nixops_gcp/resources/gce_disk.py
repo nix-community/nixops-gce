@@ -15,10 +15,13 @@ from nixops_gcp.gcp_common import (
     optional_int,
 )
 from nixops_gcp.resources.gce_image import GCEImageState
+from .types.gce_disk import GceDiskOptions
 
 
 class GCEDiskDefinition(ResourceDefinition):
     """Definition of a GCE Persistent Disk"""
+
+    config: GceDiskOptions
 
     @classmethod
     def get_type(cls):
@@ -28,16 +31,15 @@ class GCEDiskDefinition(ResourceDefinition):
     def get_resource_type(cls):
         return "gceDisks"
 
-    def __init__(self, xml):
-        ResourceDefinition.__init__(self, xml)
-
-        self.disk_name = self.get_option_value(xml, "name", str)
-        self.copy_option(xml, "region", str)
-        self.copy_option(xml, "size", int, optional=True)
-        self.copy_option(xml, "snapshot", str, optional=True)
-        self.copy_option(xml, "image", str, optional=True)
-        self.copy_option(xml, "publicImageProject", str, optional=True)
-        self.copy_option(xml, "diskType", str)
+    def __init__(self, name, config):
+        super().__init__(name, config)
+        self.disk_name = self.config.name
+        self.region = self.config.region
+        self.size = self.config.size
+        self.snapshot = self.config.snapshot
+        self.image = self.config.image
+        self.public_image_project = self.config.publicImageProject
+        self.disk_type = self.config.diskType
 
     def show_type(self):
         return "{0} [{1}]".format(self.get_type(), self.region)
@@ -59,7 +61,7 @@ class GCEDiskState(ResourceState):
         ResourceState.__init__(self, depl, name, id)
 
     def show_type(self):
-        s = super(GCEDiskState, self).show_type()
+        s = super().show_type
         if self.state == self.UP:
             s = "{0} [{1}; {2} GiB]".format(s, self.region, self.size)
         return s
