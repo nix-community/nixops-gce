@@ -7,10 +7,13 @@ import libcloud.common.google
 
 from nixops.util import attr_property
 from nixops_gcp.gcp_common import ResourceDefinition, ResourceState, optional_string
+from .types.gce_static_ip import GceStaticIpOptions
 
 
 class GCEStaticIPDefinition(ResourceDefinition):
     """Definition of a GCE Static IP"""
+
+    config: GceStaticIpOptions
 
     @classmethod
     def get_type(cls):
@@ -20,13 +23,11 @@ class GCEStaticIPDefinition(ResourceDefinition):
     def get_resource_type(cls):
         return "gceStaticIPs"
 
-    def __init__(self, xml):
-        ResourceDefinition.__init__(self, xml)
-
-        self.addr_name = self.get_option_value(xml, "name", str)
-        self.copy_option(xml, "region", str)
-
-        self.copy_option(xml, "ipAddress", str, optional=True)
+    def __init__(self, name, config):
+        super().__init__(name, config)
+        self.addr_name = self.config.name
+        self.region = self.config.region
+        self.config.ip_address = self.config.ipAddress
 
     def show_type(self):
         return "{0} [{1}]".format(self.get_type(), self.region)

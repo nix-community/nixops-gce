@@ -9,6 +9,7 @@ from libcloud.compute.providers import get_driver
 
 from nixops.util import attr_property
 from nixops_gcp.gcp_common import ResourceDefinition, ResourceState
+from .types.gce_network import GceNetworkOptions, FirewallOptions
 
 
 def normalize_list(tags):
@@ -18,6 +19,8 @@ def normalize_list(tags):
 class GCENetworkDefinition(ResourceDefinition):
     """Definition of a GCE Network"""
 
+    config: GceNetworkOptions
+
     @classmethod
     def get_type(cls):
         return "gce-network"
@@ -26,54 +29,42 @@ class GCENetworkDefinition(ResourceDefinition):
     def get_resource_type(cls):
         return "gceNetworks"
 
-    def __init__(self, xml):
-        ResourceDefinition.__init__(self, xml)
+    def __init__(self, name, config):
+        super().__init__(name, config)
 
-        self.network_name = self.get_option_value(xml, "name", str)
-        self.copy_option(xml, "addressRange", str, empty=False)
+        self.network_name = self.config.name
+        self.address_range = self.config.addressRange
 
         def parse_allowed(x):
-            if x.find("list") is not None:
-                return [v.get("value") for v in x.findall("list/string")] + [
-                    str(v.get("value")) for v in x.findall("list/int")
-                ]
+            if x is None:
+                return []
             else:
-                return None
+                return [str(v) for v in x]
 
-        def parse_sourceranges(x):
-            value = self.get_option_value(x, "sourceRanges", "strlist", optional=True)
-            return ["0.0.0.0/0"] if value is None else value
-
-        def parse_fw(x):
-            result = {
-                "sourceRanges": parse_sourceranges(x),
-                "sourceTags": self.get_option_value(x, "sourceTags", "strlist"),
-                "targetTags": self.get_option_value(x, "targetTags", "strlist"),
-                "allowed": {
-                    a.get("name"): parse_allowed(a)
-                    for a in x.findall("attrs/attr[@name='allowed']/attrs/attr")
-                },
+        def parse_fw(x_name: str, x: FirewallOptions):
+            result = dict(x)
+            result["sourceRanges"] = list(x.sourceRanges or []) or ["0.0.0.0/0"]
+            result["allowed"] = {
+                name: parse_allowed(a) for name, a in x.allowed.items()
             }
+
             if len(result["allowed"]) == 0:
                 raise Exception(
                     "Firewall rule '{0}' in network '{1}' "
                     "must provide at least one protocol/port specification".format(
-                        x.get("name"), self.network_name
+                        x_name, self.network_name
                     )
                 )
             if len(result["sourceRanges"]) == 0 and len(result["sourceTags"]) == 0:
                 raise Exception(
                     "Firewall rule '{0}' in network '{1}' "
                     "must specify at least one source range or tag".format(
-                        x.get("name"), self.network_name
+                        x_name, self.network_name
                     )
                 )
             return result
 
-        self.firewall = {
-            fw.get("name"): parse_fw(fw)
-            for fw in xml.findall("attrs/attr[@name='firewall']/attrs/attr")
-        }
+        self.firewall = {k: parse_fw(k, v) for k, v in self.config.firewall.items()}
 
     def show_type(self):
         return "{0} [{1}]".format(self.get_type(), self.address_range)
