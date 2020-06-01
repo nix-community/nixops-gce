@@ -5,7 +5,7 @@
 import os
 import libcloud.common.google
 
-
+from typing import Optional
 from nixops_gcp.resources.gce_static_ip import GCEStaticIPState
 from nixops_gcp.resources.gce_target_pool import GCETargetPoolState
 from nixops.util import attr_property
@@ -15,10 +15,13 @@ from nixops_gcp.gcp_common import (
     optional_string,
     ensure_not_empty,
 )
+from .types.gce_forwarding_rule import GceForwardingRuleOptions
 
 
 class GCEForwardingRuleDefinition(ResourceDefinition):
     """Definition of a GCE Forwarding Rule"""
+
+    config: GceForwardingRuleOptions
 
     @classmethod
     def get_type(cls):
@@ -28,22 +31,22 @@ class GCEForwardingRuleDefinition(ResourceDefinition):
     def get_resource_type(cls):
         return "gceForwardingRules"
 
-    def __init__(self, xml):
-        ResourceDefinition.__init__(self, xml)
+    def __init__(self, name, config):
+        super().__init__(name, config)
 
-        self.forwarding_rule_name = self.get_option_value(xml, "name", str)
+        self.forwarding_rule_name = self.config.name
 
-        self.copy_option(xml, "region", str)
-        self.copy_option(xml, "protocol", str)
+        self.region = self.config.region
+        self.protocol = self.config.protocol
 
-        pr = self.get_option_value(xml, "portRange", str, optional=True)
+        pr = self.config.protocol.portRange
         self.port_range = (
             None if pr is None else "{0}-{1}".format(pr, pr) if pr.isdigit() else pr
         )
 
-        self.copy_option(xml, "description", str, optional=True)
-        self.copy_option(xml, "targetPool", "resource")
-        self.copy_option(xml, "ipAddress", "resource", optional=True)
+        self.description = self.config.description
+        self.target_pool = self.config.targetPool
+        self.ip_address = self.config.ipAddress
 
     def show_type(self):
         return "{0} [{1}]".format(self.get_type(), self.region)
