@@ -4,7 +4,7 @@ from typing import Union
 from typing import Optional
 
 
-class GceRoutesOptions(ResourceOptions):
+class GceRouteOptions(ResourceOptions):
     accessKey: str
     description: Optional[str]
     destination: Optional[str]

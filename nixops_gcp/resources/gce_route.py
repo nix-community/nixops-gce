@@ -7,13 +7,13 @@ import libcloud.common.google
 from nixops import backends
 from nixops.util import attr_property
 from nixops_gcp.gcp_common import ResourceDefinition, ResourceState
-from .types.gce_routes import GceRoutesOptions
+from .types.gce_route import GceRouteOptions
 
 
 class GCERouteDefinition(ResourceDefinition):
     """Definition of a GCE Route"""
 
-    config: GceRoutesOptions
+    config: GceRouteOptions
 
     @classmethod
     def get_type(cls):
