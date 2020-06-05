@@ -36,7 +36,12 @@ class ResourceDefinition(nixops.resources.ResourceDefinition):
     def __init__(self, name, config):
         super().__init__(name, config)
 
-        res_name = self.config.name
+        res_name: str
+        if hasattr(self.config, "gce") and hasattr(self.config.gce, "machineName"):
+            res_name = self.config.gce.machineName
+        else:
+            res_name = self.config.name
+
         if (
             len(res_name) > 63
             or re.match("[a-z]([-a-z0-9]{0,61}[a-z0-9])?$", res_name) is None
@@ -49,9 +54,18 @@ class ResourceDefinition(nixops.resources.ResourceDefinition):
                 "except the last character, which cannot be a dash.".format(res_name)
             )
 
-        self.project = self.config.project
-        self.service_account = self.config.serviceAccount
-        self.access_key_path = self.config.accessKey
+        if hasattr(self.config, "gce") and hasattr(self.config.gce, "project"):
+            self.project = self.config.gce.project
+        else:
+            self.project = self.config.project
+        if hasattr(self.config, "gce") and hasattr(self.config.gce, "serviceAccount"):
+            self.service_account = self.config.gce.serviceAccount
+        else:
+            self.service_account = self.config.serviceAccount
+        if hasattr(self.config, "gce") and hasattr(self.config.gce, "accessKey"):
+            self.access_key_path = self.config.gce.accessKey
+        else:
+            self.access_key_path = self.config.accessKey
 
 
 class ResourceState(nixops.resources.ResourceState):

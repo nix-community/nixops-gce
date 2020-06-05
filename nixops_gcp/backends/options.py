@@ -58,4 +58,4 @@ class GceOptions(ResourceOptions):
     serviceAccount: str
     subnet: Optional[str]
     tags: Sequence[str]
-    fileSystems: Mapping[str, FilesystemsOptions]
+    fileSystems: Optional[Mapping[str, FilesystemsOptions]]

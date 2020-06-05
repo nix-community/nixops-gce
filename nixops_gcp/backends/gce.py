@@ -35,6 +35,7 @@ class GCEDefinition(MachineDefinition, ResourceDefinition):
     """
     Definition of a Google Compute Engine machine.
     """
+    config: GCEMachineOptions
 
     @classmethod
     def get_type(cls):
@@ -43,7 +44,7 @@ class GCEDefinition(MachineDefinition, ResourceDefinition):
     def __init__(self, name, config):
         super().__init__(name, config)
 
-        self.machine_name = self.config.machineName
+        self.machine_name = self.config.gce.machineName
 
         self.region = self.config.gce.region
 
@@ -59,13 +60,13 @@ class GCEDefinition(MachineDefinition, ResourceDefinition):
 
         self.metadata: Dict[str, str] = dict(self.config.gce.metadata)
 
-        scheduling = dict(self.config.gce.scheduling)
+        self.scheduling = dict(self.config.gce.scheduling)
+        self.preemptible = self.config.gce.scheduling.preemptible
+        self.automatic_restart = self.config.gce.scheduling.automaticRestart
+        self.on_host_maintenance = self.config.gce.scheduling.onHostMaintenance
 
-        instance_service_account: Dict[str, Union[str, List[str]]] = {}
-        instance_service_account["email"] = self.config.gce.instanceServiceAccount.email
-        instance_service_account["scopes"] = list(
-            self.config.gce.instanceServiceAccount.email
-        )
+        self.email = self.config.gce.instanceServiceAccount.email
+        self.scopes = list(self.config.gce.instanceServiceAccount.scopes)
 
         self.ipAddress = self.config.gce.ipAddress
         self.network = self.config.gce.network
@@ -263,7 +264,7 @@ class GCEState(MachineState[GCEDefinition], ResourceState):
         self.host_key_type = (
             "ed25519"
             if self.state_version != "14.12"
-            and parse_nixos_version(defn.config["nixosRelease"]) >= ["15", "09"]
+            and parse_nixos_version(defn.config.nixosRelease) >= ["15", "09"]
             else "ecdsa"
         )
 
@@ -712,7 +713,7 @@ class GCEState(MachineState[GCEDefinition], ResourceState):
             defn_v = defn.block_device_mapping.get(k, None)
             if v.get("needsAttach", False) and defn_v:
                 disk_name = v["disk_name"]
-                disk_volume = v["disk_name"] if v["disk"] is None else v["disk"]
+                disk_volume = v["disk_name"] if v["disk"] is None else v["disk"]["name"]
                 disk_region = v.get("region", None)
                 v["readOnly"] = defn_v["readOnly"]
                 v["bootDisk"] = defn_v["bootDisk"]
