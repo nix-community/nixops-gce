@@ -61,7 +61,7 @@ class GCEDiskState(ResourceState):
         ResourceState.__init__(self, depl, name, id)
 
     def show_type(self):
-        s = super().show_type
+        s = super().show_type()
         if self.state == self.UP:
             s = "{0} [{1}; {2} GiB]".format(s, self.region, self.size)
         return s
