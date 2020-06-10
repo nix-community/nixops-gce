@@ -45,7 +45,7 @@ with import <nixops/lib.nix> lib;
     };
 
     image = mkOption {
-      default  = null;
+      default  = {};
       example = { name = null; family = "super-family"; project = "operations"; };
       type = with types; (nullOr (submodule {
         options = {
