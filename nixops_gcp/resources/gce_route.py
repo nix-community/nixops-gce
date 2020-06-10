@@ -7,10 +7,13 @@ import libcloud.common.google
 from nixops import backends
 from nixops.util import attr_property
 from nixops_gcp.gcp_common import ResourceDefinition, ResourceState
+from .types.gce_route import GceRouteOptions
 
 
 class GCERouteDefinition(ResourceDefinition):
     """Definition of a GCE Route"""
+
+    config: GceRouteOptions
 
     @classmethod
     def get_type(cls):
@@ -20,15 +23,15 @@ class GCERouteDefinition(ResourceDefinition):
     def get_resource_type(cls):
         return "gceRoutes"
 
-    def __init__(self, xml):
-        ResourceDefinition.__init__(self, xml)
-        self.route_name = self.get_option_value(xml, 'name', str)
-        self.description = self.get_option_value(xml, 'description', str, optional=True)
-        self.network = self.get_option_value(xml, 'network', str)
-        self.priority = self.get_option_value(xml, 'priority', int)
-        self.nextHop = self.get_option_value(xml, 'nextHop', str, optional=True)
-        self.destination = self.get_option_value(xml, 'destination', str)
-        self.tags = self.get_option_value(xml, 'tags', "strlist", optional=True)
+    def __init__(self, name, config):
+        super().__init__(name, config)
+        self.route_name = self.config.name
+        self.description = self.config.description
+        self.network = self.config.network
+        self.priority = self.config.priority
+        self.nextHop = self.config.nextHop
+        self.destination = self.config.destination
+        self.tags = list(tags) if self.tags is not None else None
 
     def show_type(self):
         return "{0} [{1}]".format(self.get_type(), self.name)
@@ -43,9 +46,17 @@ class GCERouteState(ResourceState):
     priority = attr_property("gce.route.priority", None, int)
     nextHop = attr_property("gce.route.nextHop", None)
     destination = attr_property("gce.route.destination", None)
-    tags = attr_property("gce.route.tags", None, 'json')
+    tags = attr_property("gce.route.tags", None, "json")
 
-    defn_properties = ['route_name', 'destination', 'priority', 'network', 'tags', 'nextHop', 'description']
+    defn_properties = [
+        "route_name",
+        "destination",
+        "priority",
+        "network",
+        "tags",
+        "nextHop",
+        "description",
+    ]
 
     nix_name = "gceRoutes"
 
@@ -58,7 +69,8 @@ class GCERouteState(ResourceState):
 
     def show_type(self):
         s = super(GCERouteState, self).show_type()
-        if self.state == self.UP: s = "{0} [{1}]".format(s, self.name)
+        if self.state == self.UP:
+            s = "{0} [{1}]".format(s, self.name)
         return s
 
     def _destroy_route(self):
@@ -87,15 +99,21 @@ class GCERouteState(ResourceState):
         route = self.connect().ex_get_route(self.route_name)
         # libcloud only expose these properties in the GCERoute class.
         # "description" and "nextHop" can't be checked.
-        route_properties = {"name": "route_name",
-                            "dest_range": "destination",
-                            "tags": "tags",
-                            "priority": "priority"}
+        route_properties = {
+            "name": "route_name",
+            "dest_range": "destination",
+            "tags": "tags",
+            "priority": "priority",
+        }
         # This shouldn't happen, unless you delete the
         # route manually and create another one with the
         # same name, but different properties.
-        real_state_differ = any([getattr(route, route_attr) != getattr(self, self_attr)
-                                 for route_attr, self_attr in route_properties.items()])
+        real_state_differ = any(
+            [
+                getattr(route, route_attr) != getattr(self, self_attr)
+                for route_attr, self_attr in route_properties.items()
+            ]
+        )
 
         # We need to check the network in separate, since GCE API add the project and the region
         network_differ = route.network.split("/")[-1] != self.network
@@ -113,10 +131,12 @@ class GCERouteState(ResourceState):
             return False
 
         if self._real_state_differ():
-                if self.depl.logger.confirm("Route properties are different from those in the state, "
-                                            "destroy route {0}?".format(self.route_name)):
-                    self._destroy_route()
-                    self.state = self.MISSING
+            if self.depl.logger.confirm(
+                "Route properties are different from those in the state, "
+                "destroy route {0}?".format(self.route_name)
+            ):
+                self._destroy_route()
+                self.state = self.MISSING
         return True
 
     def create(self, defn, check, allow_reboot, allow_recreate):
@@ -131,15 +151,19 @@ class GCERouteState(ResourceState):
                     self._destroy_route()
                     self.state = self.MISSING
                 else:
-                    self.warn("Route properties are different from those in the state,"
-                              " use --allow-recreate to delete the route and deploy it again.")
+                    self.warn(
+                        "Route properties are different from those in the state,"
+                        " use --allow-recreate to delete the route and deploy it again."
+                    )
 
         if defn.destination.startswith("res-"):
             # if a machine resource was used for the destination, get
             # the public IP of the instance into the definition of the
             # route
             machine_name = defn.destination[4:]
-            defn.destination = "{ip}/32".format(ip=self._get_machine_property(machine_name, "public_ipv4"))
+            defn.destination = "{ip}/32".format(
+                ip=self._get_machine_property(machine_name, "public_ipv4")
+            )
 
         if self.is_deployed() and self.properties_changed(defn):
             if allow_recreate:
@@ -147,7 +171,9 @@ class GCERouteState(ResourceState):
                 self._destroy_route()
                 self.state = self.MISSING
             else:
-                raise Exception("GCE routes are immutable, you need to use --allow-recreate.")
+                raise Exception(
+                    "GCE routes are immutable, you need to use --allow-recreate."
+                )
 
         if self.state != self.UP:
             with self.depl._db:
@@ -156,13 +182,19 @@ class GCERouteState(ResourceState):
 
                 if defn.nextHop and defn.nextHop.startswith("res-"):
                     try:
-                        nextHop_name = self._get_machine_property(defn.nextHop[4:], "machine_name")
+                        nextHop_name = self._get_machine_property(
+                            defn.nextHop[4:], "machine_name"
+                        )
                         defn.nextHop = self.connect().ex_get_node(nextHop_name)
                     except AttributeError:
                         raise Exception("nextHop can only be a GCE machine.")
                         raise
                     except libcloud.common.google.ResourceNotFoundError:
-                        raise Exception("The machine {0} isn't deployed, it need to be before it's added as nextHop".format(nextHop_name))
+                        raise Exception(
+                            "The machine {0} isn't deployed, it need to be before it's added as nextHop".format(
+                                nextHop_name
+                            )
+                        )
 
                 args = [getattr(defn, attr) for attr in self.defn_properties]
                 try:
@@ -173,7 +205,9 @@ class GCERouteState(ResourceState):
 
     def destroy(self, wipe=False):
         if self.state == self.UP:
-            if not self.depl.logger.confirm("are you sure you want to destroy {0}?".format(self.full_name)):
+            if not self.depl.logger.confirm(
+                "are you sure you want to destroy {0}?".format(self.full_name)
+            ):
                 return False
 
             self.log("destroying {0}...".format(self.full_name))

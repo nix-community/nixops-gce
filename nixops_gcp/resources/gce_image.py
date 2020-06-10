@@ -7,10 +7,13 @@ import libcloud.common.google
 
 from nixops.util import attr_property
 from nixops_gcp.gcp_common import ResourceDefinition, ResourceState
+from .types.gce_image import GceImageOptions
 
 
 class GCEImageDefinition(ResourceDefinition):
     """Definition of a GCE Image"""
+
+    config: GceImageOptions
 
     @classmethod
     def get_type(cls):
@@ -20,12 +23,11 @@ class GCEImageDefinition(ResourceDefinition):
     def get_resource_type(cls):
         return "gceImages"
 
-    def __init__(self, xml):
-        ResourceDefinition.__init__(self, xml)
-
-        self.image_name = self.get_option_value(xml, 'name', str)
-        self.copy_option(xml, 'sourceUri', str)
-        self.copy_option(xml, 'description', str, optional = True)
+    def __init__(self, name, config):
+        super().__init__(name, config)
+        self.image_name = self.config.name
+        self.source_uri = self.config.sourceUri
+        self.description = self.config.description
 
     def show_type(self):
         return self.get_type()
@@ -67,12 +69,12 @@ class GCEImageState(ResourceState):
         except libcloud.common.google.ResourceNotFoundError:
             return None
 
-    defn_properties = [ 'description', 'source_uri' ]
+    defn_properties = ["description", "source_uri"]
 
     def create(self, defn, check, allow_reboot, allow_recreate):
         if defn.name != "bootstrap":
-            self.no_property_change(defn, 'source_uri')
-            self.no_property_change(defn, 'description')
+            self.no_property_change(defn, "source_uri")
+            self.no_property_change(defn, "description")
 
         self.no_project_change(defn)
 
@@ -83,9 +85,11 @@ class GCEImageState(ResourceState):
             image = self.image()
             if image:
                 if self.state == self.UP:
-                    self.handle_changed_property('description', image.extra['description'], can_fix = False)
+                    self.handle_changed_property(
+                        "description", image.extra["description"], can_fix=False
+                    )
                 else:
-                    self.warn_not_supposed_to_exist(valuable_data = True)
+                    self.warn_not_supposed_to_exist(valuable_data=True)
                     self.confirm_destroy(image, self.full_name)
             else:
                 self.warn_missing_resource()
@@ -93,11 +97,14 @@ class GCEImageState(ResourceState):
         if self.state != self.UP:
             self.log("creating {0}...".format(self.full_name))
             try:
-                image = self.connect().ex_copy_image(defn.image_name, defn.source_uri,
-                                                     description = defn.description)
+                image = self.connect().ex_copy_image(
+                    defn.image_name, defn.source_uri, description=defn.description
+                )
             except libcloud.common.google.ResourceExistsError:
-                raise Exception("tried creating an image that already exists; "
-                                "please run 'deploy --check' to fix this")
+                raise Exception(
+                    "tried creating an image that already exists; "
+                    "please run 'deploy --check' to fix this"
+                )
             self.state = self.UP
             self.copy_properties(defn)
 
@@ -105,7 +112,9 @@ class GCEImageState(ResourceState):
         if self.state == self.UP:
             image = self.image()
             if image:
-                return self.confirm_destroy(image, self.full_name, abort = False)
+                return self.confirm_destroy(image, self.full_name, abort=False)
             else:
-                self.warn("tried to destroy {0} which didn't exist".format(self.full_name))
+                self.warn(
+                    "tried to destroy {0} which didn't exist".format(self.full_name)
+                )
         return True

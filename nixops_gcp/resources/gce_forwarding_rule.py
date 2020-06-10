@@ -5,15 +5,23 @@
 import os
 import libcloud.common.google
 
-
+from typing import Optional
 from nixops_gcp.resources.gce_static_ip import GCEStaticIPState
 from nixops_gcp.resources.gce_target_pool import GCETargetPoolState
 from nixops.util import attr_property
-from nixops_gcp.gcp_common import ResourceDefinition, ResourceState, optional_string, ensure_not_empty
+from nixops_gcp.gcp_common import (
+    ResourceDefinition,
+    ResourceState,
+    optional_string,
+    ensure_not_empty,
+)
+from .types.gce_forwarding_rule import GceForwardingRuleOptions
 
 
 class GCEForwardingRuleDefinition(ResourceDefinition):
     """Definition of a GCE Forwarding Rule"""
+
+    config: GceForwardingRuleOptions
 
     @classmethod
     def get_type(cls):
@@ -23,21 +31,22 @@ class GCEForwardingRuleDefinition(ResourceDefinition):
     def get_resource_type(cls):
         return "gceForwardingRules"
 
-    def __init__(self, xml):
-        ResourceDefinition.__init__(self, xml)
+    def __init__(self, name, config):
+        super().__init__(name, config)
 
-        self.forwarding_rule_name = self.get_option_value(xml, 'name', str)
+        self.forwarding_rule_name = self.config.name
 
-        self.copy_option(xml, 'region', str)
-        self.copy_option(xml, 'protocol', str)
+        self.region = self.config.region
+        self.protocol = self.config.protocol
 
-        pr = self.get_option_value(xml, 'portRange', str, optional = True)
-        self.port_range = None if pr is None else "{0}-{1}".format(pr, pr) if pr.isdigit() else pr
+        pr = self.config.protocol.portRange
+        self.port_range = (
+            None if pr is None else "{0}-{1}".format(pr, pr) if pr.isdigit() else pr
+        )
 
-        self.copy_option(xml, 'description', str, optional = True)
-        self.copy_option(xml, 'targetPool', 'resource')
-        self.copy_option(xml, 'ipAddress', 'resource', optional = True)
-
+        self.description = self.config.description
+        self.target_pool = self.config.targetPool
+        self.ip_address = self.config.ipAddress
 
     def show_type(self):
         return "{0} [{1}]".format(self.get_type(), self.region)
@@ -64,14 +73,15 @@ class GCEForwardingRuleState(ResourceState):
 
     def show_type(self):
         s = super(GCEForwardingRuleState, self).show_type()
-        if self.state == self.UP: s = "{0} [{1}]".format(s, self.region)
+        if self.state == self.UP:
+            s = "{0} [{1}]".format(s, self.region)
         return s
 
     def prefix_definition(self, attr):
-        return {('resources', 'gceForwardingRules'): attr}
+        return {("resources", "gceForwardingRules"): attr}
 
     def get_physical_spec(self):
-        return {'publicIPv4': self.public_ipv4}
+        return {"publicIPv4": self.public_ipv4}
 
     @property
     def resource_id(self):
@@ -86,15 +96,21 @@ class GCEForwardingRuleState(ResourceState):
     def forwarding_rule(self):
         return self.connect().ex_get_forwarding_rule(self.forwarding_rule_name)
 
-    defn_properties = [ 'target_pool', 'region', 'protocol',
-                        'port_range', 'ip_address', 'description' ]
+    defn_properties = [
+        "target_pool",
+        "region",
+        "protocol",
+        "port_range",
+        "ip_address",
+        "description",
+    ]
 
     def create(self, defn, check, allow_reboot, allow_recreate):
-        self.no_property_change(defn, 'target_pool')
-        self.no_property_change(defn, 'protocol')
-        self.no_property_change(defn, 'port_range')
-        self.no_property_change(defn, 'ip_address')
-        self.no_property_change(defn, 'description')
+        self.no_property_change(defn, "target_pool")
+        self.no_property_change(defn, "protocol")
+        self.no_property_change(defn, "port_range")
+        self.no_property_change(defn, "ip_address")
+        self.no_property_change(defn, "description")
         self.no_project_change(defn)
         self.no_region_change(defn)
 
@@ -105,29 +121,51 @@ class GCEForwardingRuleState(ResourceState):
             try:
                 fwr = self.forwarding_rule()
                 if self.state == self.UP:
-                    self.handle_changed_property('public_ipv4', fwr.address, property_name = 'IP address')
+                    self.handle_changed_property(
+                        "public_ipv4", fwr.address, property_name="IP address"
+                    )
 
-                    self.handle_changed_property('region', fwr.region.name, can_fix = False)
-                    self.handle_changed_property('target_pool', fwr.targetpool.name, can_fix = False)
-                    self.handle_changed_property('protocol', fwr.protocol, can_fix = False)
-                    self.handle_changed_property('description', fwr.extra['description'], can_fix = False)
-                    self.warn_if_changed(self.port_range or '1-65535', fwr.extra['portRange'],
-                                         'port range', can_fix = False)
+                    self.handle_changed_property(
+                        "region", fwr.region.name, can_fix=False
+                    )
+                    self.handle_changed_property(
+                        "target_pool", fwr.targetpool.name, can_fix=False
+                    )
+                    self.handle_changed_property(
+                        "protocol", fwr.protocol, can_fix=False
+                    )
+                    self.handle_changed_property(
+                        "description", fwr.extra["description"], can_fix=False
+                    )
+                    self.warn_if_changed(
+                        self.port_range or "1-65535",
+                        fwr.extra["portRange"],
+                        "port range",
+                        can_fix=False,
+                    )
 
                     if self.ip_address:
                         try:
                             address = self.connect().ex_get_address(self.ip_address)
                             if self.public_ipv4 and self.public_ipv4 != address.address:
-                                self.warn("static IP Address {0} assigned to this machine has unexpectely "
-                                          "changed from {1} to {2} most likely due to being redeployed"
-                                          "; cannot fix this automatically"
-                                          .format(self.ip_address, self.public_ipv4, address.address) )
+                                self.warn(
+                                    "static IP Address {0} assigned to this machine has unexpectely "
+                                    "changed from {1} to {2} most likely due to being redeployed"
+                                    "; cannot fix this automatically".format(
+                                        self.ip_address,
+                                        self.public_ipv4,
+                                        address.address,
+                                    )
+                                )
 
                         except libcloud.common.google.ResourceNotFoundError:
-                            self.warn("static IP Address resource {0} used by this forwarding rule has been destroyed; "
-                                      "it is likely that the forwarding rule is still holding the address itself ({1}) "
-                                      "and this is your last chance to reclaim it before it gets lost"
-                                      .format(self.ip_address, self.public_ipv4) )
+                            self.warn(
+                                "static IP Address resource {0} used by this forwarding rule has been destroyed; "
+                                "it is likely that the forwarding rule is still holding the address itself ({1}) "
+                                "and this is your last chance to reclaim it before it gets lost".format(
+                                    self.ip_address, self.public_ipv4
+                                )
+                            )
 
                 else:
                     self.warn_not_supposed_to_exist()
@@ -139,15 +177,20 @@ class GCEForwardingRuleState(ResourceState):
         if self.state != self.UP:
             self.log("creating {0}...".format(self.full_name))
             try:
-                fwr = self.connect().ex_create_forwarding_rule(defn.forwarding_rule_name,
-                                                               defn.target_pool, region = defn.region,
-                                                               protocol = defn.protocol,
-                                                               port_range = defn.port_range,
-                                                               address = defn.ip_address,
-                                                               description = defn.description)
+                fwr = self.connect().ex_create_forwarding_rule(
+                    defn.forwarding_rule_name,
+                    defn.target_pool,
+                    region=defn.region,
+                    protocol=defn.protocol,
+                    port_range=defn.port_range,
+                    address=defn.ip_address,
+                    description=defn.description,
+                )
             except libcloud.common.google.ResourceExistsError:
-                raise Exception("tried creating a forwarding rule that already exists; "
-                                "please run 'deploy --check' to fix this")
+                raise Exception(
+                    "tried creating a forwarding rule that already exists; "
+                    "please run 'deploy --check' to fix this"
+                )
             self.state = self.UP
             self.copy_properties(defn)
             self.public_ipv4 = fwr.address
@@ -156,17 +199,20 @@ class GCEForwardingRuleState(ResourceState):
         # only changing of target pool is supported by GCE, but not libcloud
         # FIXME: implement
 
-
     def destroy(self, wipe=False):
         if self.state == self.UP:
             try:
                 fwr = self.forwarding_rule()
-                return self.confirm_destroy(fwr, self.full_name, abort = False)
+                return self.confirm_destroy(fwr, self.full_name, abort=False)
             except libcloud.common.google.ResourceNotFoundError:
-                self.warn("tried to destroy {0} which didn't exist".format(self.full_name))
+                self.warn(
+                    "tried to destroy {0} which didn't exist".format(self.full_name)
+                )
         return True
 
     def create_after(self, resources, defn):
-        return {r for r in resources if
-                isinstance(r, GCETargetPoolState) or
-                isinstance(r, GCEStaticIPState)}
+        return {
+            r
+            for r in resources
+            if isinstance(r, GCETargetPoolState) or isinstance(r, GCEStaticIPState)
+        }
