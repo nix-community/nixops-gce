@@ -171,6 +171,22 @@ typing-extensions = "^3.7.4"
 reference = "0fc0434250e9855ee9239bc48d87e7a31ed433e8"
 type = "git"
 url = "https://github.com/NixOS/nixops.git"
+
+[[package]]
+category = "main"
+description = ""
+name = "nixos-modules-contrib"
+optional = false
+python-versions = "^3.7"
+version = "0.1.0"
+
+[package.dependencies]
+nixops = "rev master"
+
+[package.source]
+reference = "fb6e681de75647dada640147213540baba1e90c4"
+type = "git"
+url = "https://github.com/nix-community/nixos-modules-contrib.git"
 [[package]]
 category = "dev"
 description = "nose extends unittest to make testing easier"
@@ -428,6 +444,7 @@ mypy-extensions = [
     {file = "mypy_extensions-0.4.3.tar.gz", hash = "sha256:2d82818f5bb3e369420cb3c4060a7970edba416647068eb4c5343488a6c604a8"},
 ]
 nixops = []
+nixos-modules-contrib = []
 nose = [
     {file = "nose-1.3.7-py2-none-any.whl", hash = "sha256:dadcddc0aefbf99eea214e0f1232b94f2fa9bd98fa8353711dacb112bfcbbb2a"},
     {file = "nose-1.3.7-py3-none-any.whl", hash = "sha256:9ff7c6cc443f8c51994b34a667bbcf45afd6d945be7477b52e97516fd17c53ac"},
