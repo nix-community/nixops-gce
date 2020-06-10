@@ -35,6 +35,7 @@ class GCEDefinition(MachineDefinition, ResourceDefinition):
     """
     Definition of a Google Compute Engine machine.
     """
+
     config: GCEMachineOptions
 
     @classmethod
