@@ -1,19 +1,29 @@
-from nixops.resources import ResourceOptions
+from nixops.resources import (
+    ResourceOptions,
+    ResourceEval,
+)
 from typing_extensions import Literal
-from typing import Sequence
-from typing import Optional
-from typing import Union
-from typing import Mapping
+from typing import (
+    Sequence,
+    Optional,
+    Union,
+    Mapping,
+)
+
+
+class ImageOptions(ResourceOptions):
+    name: Optional[Union[str, ResourceEval]]
+    family: Optional[str]
+    project: Optional[str]
 
 
 class GCEDiskOptions(ResourceOptions):
     disk_name: Optional[str]
     disk: Optional[str]
     snapshot: Optional[str]
-    image: Optional[str]
-    publicImageProject: Optional[str]
+    image: ImageOptions
     size: Optional[int]
-    diskType: Union[Literal["standard"], Literal["ssd"]]
+    diskType: Literal["standard", "ssd"]
     readOnly: bool
     bootDisk: bool
     deleteOnTermination: bool
@@ -41,7 +51,7 @@ class InstanceserviceAccountOptions(ResourceOptions):
 class GceOptions(ResourceOptions):
     accessKey: str
     blockDeviceMapping: Mapping[str, GCEDiskOptions]
-    bootstrapImage: str
+    bootstrapImage: ImageOptions
     canIpForward: bool
     instanceServiceAccount: InstanceserviceAccountOptions
     instanceType: str

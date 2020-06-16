@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict, Union, Optional
+from typing import (
+    Dict,
+    Optional,
+)
 import time
 
 from nixops import known_hosts
@@ -15,7 +18,11 @@ from nixops.nix_expr import Function, RawValue, Call
 
 from nixops.backends import MachineDefinition, MachineState, MachineOptions
 
-from nixops_gcp.gcp_common import ResourceDefinition, ResourceState
+from nixops_gcp.gcp_common import (
+    ResourceDefinition,
+    ResourceState,
+    retrieve_gce_image,
+)
 import nixops_gcp.resources.gce_static_ip
 import nixops_gcp.resources.gce_disk
 import nixops_gcp.resources.gce_image
@@ -455,47 +462,26 @@ class GCEState(MachineState[GCEDefinition], ResourceState):
             if k in self.block_device_mapping:
                 continue
             if v["disk"] is None:
+                img = v["image"]
                 extra_msg = (
                     " from snapshot '{0}'".format(v["snapshot"])
                     if v["snapshot"]
-                    else " from image '{0}'".format(v["image"])
-                    if v["image"]
-                    else " marked as public. "
-                    if v["publicImageProject"]
+                    else " from image family '{0}'".format(img.family)
+                    if img and img.family
+                    else " from image '{0}'".format(img.name)
+                    if img and img.name
                     else ""
                 )
+                if img and img.project:
+                    extra_msg += " in project '{0}'. ".format(img.project)
                 self.log(
                     "creating GCE disk of {0} GiB{1}...".format(
                         v["size"] if v["size"] else "auto", extra_msg
                     )
                 )
                 v["region"] = defn.region
-
-                # Retrieve GCENodeImage based on family name and project
-                if v["publicImageProject"]:
-                    try:
-                        img = self.connect().ex_get_image_from_family(
-                            image_family=v["image"],
-                            ex_project_list=[v["publicImageProject"]],
-                            ex_standard_projects=False,
-                        )
-                    except libcloud.common.google.ResourceNotFoundError:
-                        raise Exception(
-                            "Image family {0} not found in project {1}".format(
-                                v["image"], v["publicImageProject"]
-                            )
-                        )
-                    except libcloud.common.google.GoogleBaseError as ex:
-                        if ex.value["reason"] == "forbidden":
-                            raise Exception(
-                                "Image from image family {0} has not been set to public in project {1}".format(
-                                    v["image"], v["publicImageProject"]
-                                )
-                            )
-                        else:
-                            raise Exception(ex.value["message"])
-                else:
-                    img = v["image"]
+                if img:
+                    img = retrieve_gce_image(_conn=self.connect(), img=img)
                 try:
                     self.connect().create_volume(
                         size=v["size"],

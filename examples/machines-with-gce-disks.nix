@@ -7,7 +7,7 @@
 , network ? ""                   # GCP network to create resources into
 , subnet ? ""
 
-, volumeSize ? 100               # Default volume size
+, volumeSize ? 50                # Default volume size
 , instanceServiceAccount ? ""    # Email of the service account to be assigned to the instance
 , instanceScopes ? []            # Access scopes to be assigned to the instance
 , preemptible ? true             # Preemtpible volatile machine
@@ -96,6 +96,12 @@
       inherit (namespace) project serviceAccount region accessKey labels;
       inherit (resources.machines.backend.fileSystems."/data".gce) size disk diskType;
       name = "${namespace.machineName}-volume";
+      #snapshot ="test";
+      #image = {
+      #  name = "n-4151a235c48c11e786970ae168952ac0-bootstrap";
+      #  family = null;
+      #  project = "new-account";
+      #};
     };
 
   # Backend Machine

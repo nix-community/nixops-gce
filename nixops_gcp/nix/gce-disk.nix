@@ -47,7 +47,7 @@ with import <nixops/lib.nix> lib;
     image = mkOption {
       default  = {};
       example = { name = null; family = "super-family"; project = "operations"; };
-      type = with types; (nullOr (submodule {
+      type = with types; (submodule {
         options = {
           name = mkOption {
             default = null;
@@ -77,7 +77,7 @@ with import <nixops/lib.nix> lib;
             '';
           };
         };
-      }));
+      });
       description = ''
         The image, image family or image-resource from which to create the GCE disk.
         If not specified, an empty disk is created. Changing the
@@ -97,17 +97,15 @@ with import <nixops/lib.nix> lib;
   };
 
   config = 
-    (mkAssert ( (config.snapshot == null) || (config.image.name == null)
-              || (config.image.family == null) )
-              "Disk can not be created from both a snapshot and an image at once"
-      (mkAssert ( (config.image.name == null) || (config.image.family == null) )
-                  "Must specify either image name or image family"
-        (mkAssert ( (config.size != null) || (config.snapshot != null) || (config.image != null) )
-                    "Disk size is required unless it is created from an image or snapshot" {
+    (mkAssert ( (config.image.name == null) || (config.image.family == null))
+              "Must specify either image name or image family"
+    (mkAssert ( (config.snapshot == null) || ((config.image.name == null) && (config.image.family == null)))
+              "Disk can not be created from both a snapshot, image name or image family at once"
+    (mkAssert ( (config.size != null) || (config.snapshot != null) || (config.image.name != null)
+              || (config.image.family != null) )
+              "Disk size is required unless it is created from an image or snapshot" {
             _type = "gce-disk";
           }
-        )
-      )
-    );
+    )));
 
 }

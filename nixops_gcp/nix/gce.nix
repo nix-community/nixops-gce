@@ -71,10 +71,15 @@ let
         '';
       };
     };
+    # ToDo : These assertions are not working for some reason..
     config =
-      (mkAssert ( (config.image.name == null) || (config.image.family == null) )
-        "Must specify either image name or image family" {}
-      );
+      (mkAssert ( (config.name == null) || (config.family == null) )
+          "Must specify either image name or image family"
+      (mkAssert ( (config.project != null) && ((config.name == null)
+               || (config.family == null)))
+          "Specify either image name or image family alongside the project"
+         {}
+      ));
     };
 
   gceDiskOptions = { config, ... }: {
@@ -111,7 +116,7 @@ let
       };
 
       image = mkOption {
-        default  = null;
+        default  = {};
         type = with types; (nullOr (submodule imageOptions));
         description = ''
           The image, image family or image-resource from which to create the GCE disk.
@@ -211,11 +216,10 @@ let
     };
 
     config =
-      (mkAssert ( (config.snapshot == null) || (config.image.name == null)
-                || (config.image.family == null) )
+      (mkAssert ( (config.snapshot == null) || ((config.image.name == null) && (config.image.family == null)))
                 "Disk can not be created from both a snapshot and an image at once"
-      (mkAssert ( (config.size != null) || (config.snapshot != null)
-               || (config.image != null) || (config.disk != null) )
+      (mkAssert ( (config.size != null) || (config.snapshot != null) || (config.image.name != null)
+               || (config.image.family != null) || (config.disk != null) )
                 "Disk size is required unless it is created from an image or snapshot" {
           # Automatically delete volumes that are automatically created.
           deleteOnTermination = mkDefault ( config.disk == null );
@@ -383,10 +387,9 @@ in
       # Using NixOs public GCE images by default
       bootstrapImage = mkOption {
         default = {
-          # name = images."${nixosVersion}" or images.latest;
-          # family = null;
+          name = images."${nixosVersion}" or images.latest;
+          family = null;
           # project = "nixos-org";
-          family = images."${nixosVersion}" or images.latest;
           project = "predictix-operations";
         };
         type = with types; (submodule imageOptions);
@@ -476,14 +479,14 @@ in
         )
        (filter (fs: fs.gce != null) (attrValues config.fileSystems))));
 
-    deployment.autoLuks =
-      let
-        f = name: dev: nameValuePair (get_disk_name dev)
-          { device = name;
-            autoFormat = true;
-            inherit (dev) cipher keySize passphrase;
-          };
-      in mapAttrs' f (filterAttrs (name: dev: dev.encrypt) config.deployment.gce.blockDeviceMapping);
+    #deployment.autoLuks =
+    #  let
+    #    f = name: dev: nameValuePair (get_disk_name dev)
+    #      { device = name;
+    #        autoFormat = true;
+    #        inherit (dev) cipher keySize passphrase;
+    #      };
+    #  in mapAttrs' f (filterAttrs (name: dev: dev.encrypt) config.deployment.gce.blockDeviceMapping);
 
     systemd.services.configure-forwarding-rules =
       { description = "Add extra IPs required for forwarding rules to work";

@@ -1,15 +1,15 @@
 from typing import Optional
-from typing import Union
 from nixops.resources import ResourceOptions
+
+from nixops_gcp.backends.options import ImageOptions
 
 
 class GceDiskOptions(ResourceOptions):
     accessKey: str
     diskType: str
-    image: Optional[str]
+    image: ImageOptions
     name: str
     project: str
-    publicImageProject: Optional[str]
     region: str
     serviceAccount: str
     size: Optional[int]

@@ -11,10 +11,10 @@ from nixops.util import attr_property
 from nixops_gcp.gcp_common import (
     ResourceDefinition,
     ResourceState,
+    retrieve_gce_image,
     optional_string,
     optional_int,
 )
-from nixops_gcp.resources.gce_image import GCEImageState
 from .types.gce_disk import GceDiskOptions
 
 
@@ -38,7 +38,6 @@ class GCEDiskDefinition(ResourceDefinition):
         self.size = self.config.size
         self.snapshot = self.config.snapshot
         self.image = self.config.image
-        self.public_image_project = self.config.publicImageProject
         self.disk_type = self.config.diskType
 
     def show_type(self):
@@ -107,47 +106,25 @@ class GCEDiskState(ResourceState):
                 self.warn_missing_resource()
 
         if self.state != self.UP:
+            img = defn.image
             extra_msg = (
                 " from snapshot '{0}'".format(defn.snapshot)
                 if defn.snapshot
-                else " from image '{0}'".format(defn.image)
-                if defn.image
-                else " marked as public. "
-                if defn.public_image_project
+                else " from image family '{0}'".format(img.family)
+                if img and img.family
+                else " from image '{0}'".format(img.name)
+                if img and img.name
                 else ""
             )
+            if img and img.project:
+                extra_msg += " in project '{0}'. ".format(img.project)
             self.log(
                 "creating GCE disk of {0} GiB{1}...".format(
                     defn.size if defn.size else "auto", extra_msg
                 )
             )
-
-            # Retrieve GCENodeImage based on family name and project
-            if defn.public_image_project:
-                try:
-                    img = self.connect().ex_get_image_from_family(
-                        image_family=defn.image,
-                        ex_project_list=[defn.public_image_project],
-                        ex_standard_projects=False,
-                    )
-                except libcloud.common.google.ResourceNotFoundError:
-                    raise Exception(
-                        "Image family {0} not found in project {1}".format(
-                            defn.image, defn.public_image_project
-                        )
-                    )
-                except libcloud.common.google.GoogleBaseError as ex:
-                    if ex.value["reason"] == "forbidden":
-                        raise Exception(
-                            "Image from image family {0} has not been set to public in project {1}".format(
-                                defn.image, defn.public_image_project
-                            )
-                        )
-                    else:
-                        raise Exception(ex.value["message"])
-            else:
-                img = defn.image
-
+            if img:
+                img = retrieve_gce_image(_conn=self.connect(), img=img)
             try:
                 volume = self.connect().create_volume(
                     size=defn.size,
@@ -164,6 +141,12 @@ class GCEDiskState(ResourceState):
                     "tried creating a disk that already exists; "
                     "please run 'deploy --check' to fix this"
                 )
+            except libcloud.common.google.ResourceNotFoundError:
+                raise Exception(
+                    "The snapshot '{0}' to be used for the volume creation does not exist".format(
+                        defn.snapshot
+                    )
+                )
             self.state = self.UP
             self.region = defn.region
             self.size = volume.size
@@ -178,6 +161,3 @@ class GCEDiskState(ResourceState):
                     "tried to destroy {0} which didn't exist".format(self.full_name)
                 )
         return True
-
-    def create_after(self, resources, defn):
-        return {r for r in resources if isinstance(r, GCEImageState)}
