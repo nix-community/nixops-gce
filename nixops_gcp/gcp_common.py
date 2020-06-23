@@ -45,7 +45,7 @@ def retrieve_gce_image(_conn, img):
     if img.name or img.family:
         # libcloud expects project to be empty list or a list of projects
         if not img.project:
-            project = []
+            project = None
         else:
             project = [img.project]
         if img.family:
@@ -76,10 +76,22 @@ def retrieve_gce_image(_conn, img):
         else:
             """ Retrieve the image object using the name, partial name
             or full path of a GCE image,
-            Optionally from a different project"""
+            Optionally from a different project
+            """
             try:
+                """
+                For image name, we need to specify the full image path because we cannot list images in a different project
+                Ref : https://cloud.google.com/compute/docs/images/managing-access-custom-images#share-images-publicly
+                Example :
+                https://www.googleapis.com/compute/v1/projects/predictix-operations/global/images/nixos-18091228a4c4cbb613c-x86-64-linux
+                """
+                image_full_path = img.name
+                if project:
+                    image_full_path = "https://www.googleapis.com/compute/v1/projects/{prj}/global/images/{img}".format(
+                        prj=img.project, img=img.name
+                    )
                 image = _conn.ex_get_image(
-                    partial_name=img.name,
+                    partial_name=image_full_path,
                     ex_project_list=project,
                     ex_standard_projects=False,
                 )
