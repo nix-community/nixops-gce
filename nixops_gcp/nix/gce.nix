@@ -479,14 +479,14 @@ in
         )
        (filter (fs: fs.gce != null) (attrValues config.fileSystems))));
 
-    #deployment.autoLuks =
-    #  let
-    #    f = name: dev: nameValuePair (get_disk_name dev)
-    #      { device = name;
-    #        autoFormat = true;
-    #        inherit (dev) cipher keySize passphrase;
-    #      };
-    #  in mapAttrs' f (filterAttrs (name: dev: dev.encrypt) config.deployment.gce.blockDeviceMapping);
+    deployment.autoLuks =
+      let
+        f = name: dev: nameValuePair (get_disk_name dev)
+          { device = name;
+            autoFormat = true;
+            inherit (dev) cipher keySize passphrase;
+          };
+      in mapAttrs' f (filterAttrs (name: dev: dev.encrypt) config.deployment.gce.blockDeviceMapping);
 
     systemd.services.configure-forwarding-rules =
       { description = "Add extra IPs required for forwarding rules to work";
