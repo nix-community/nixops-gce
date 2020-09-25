@@ -2,6 +2,9 @@
 
 with lib;
 with import <nixops/lib.nix> lib;
+let
+  imageOptions = import ./image-options.nix;
+in
 {
 
   options = (import ./gce-credentials.nix lib "disk") // {
@@ -47,37 +50,7 @@ with import <nixops/lib.nix> lib;
     image = mkOption {
       default  = {};
       example = { name = null; family = "super-family"; project = "operations"; };
-      type = with types; (submodule {
-        options = {
-          name = mkOption {
-            default = null;
-            example = "image-2cfda297";
-            type = types.nullOr (types.either types.str (resource "gce-image"));
-            description = ''
-              Name of an existent image or image-resource to be used.
-              Must specify the project if the image is defined as public.
-            '';
-          };
-          family = mkOption {
-            default = null;
-            example = "image-family-custom";
-            type = types.nullOr types.str;
-            description = ''
-              Image family to grab the latest non-deprecated image from.
-              Must specify the project if the image family is defined as public.
-            '';
-          };
-          project = mkOption {
-            default = null;
-            example = "gcp-project";
-            type = types.nullOr types.str;
-            description = ''
-              The parent project containing a GCE image that was made public
-              for all authenticated users.
-            '';
-          };
-        };
-      });
+      type = with types; (submodule imageOptions);
       description = ''
         The image, image family or image-resource from which to create the GCE disk.
         If not specified, an empty disk is created. Changing the
@@ -97,8 +70,6 @@ with import <nixops/lib.nix> lib;
   };
 
   config = 
-    (mkAssert ( (config.image.name == null) || (config.image.family == null))
-              "Must specify either image name or image family"
     (mkAssert ( (config.snapshot == null) || ((config.image.name == null) && (config.image.family == null)))
               "Disk can not be created from both a snapshot, image name or image family at once"
     (mkAssert ( (config.size != null) || (config.snapshot != null) || (config.image.name != null)
@@ -106,6 +77,6 @@ with import <nixops/lib.nix> lib;
               "Disk size is required unless it is created from an image or snapshot" {
             _type = "gce-disk";
           }
-    )));
+    ));
 
 }

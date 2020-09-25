@@ -41,46 +41,7 @@ let
     '';
   };
 
-  imageOptions = { config, ...}: {
-    options = {
-      name = mkOption {
-        default = null;
-        example = "nixos-18091228a4c4cbb613c-x86-64-linux";
-        type = types.nullOr (types.either types.str (resource "gce-image"));
-        description = ''
-          Name of an existent image or image-resource to be used.
-          Must specify the project if the image is defined as public.
-        '';
-      };
-      family = mkOption {
-        default = null;
-        example = "nixos-20-03";
-        type = types.nullOr types.str;
-        description = ''
-          Image family to grab the latest non-deprecated image from.
-          Must specify the project if the image family is defined as public.
-        '';
-      };
-      project = mkOption {
-        default = null;
-        example = "gcp-project";
-        type = types.nullOr types.str;
-        description = ''
-          The parent project containing a GCE image that was made public
-          for all authenticated users.
-        '';
-      };
-    };
-    # ToDo : These assertions are not working for some reason..
-    config =
-      (mkAssert ( (config.name == null) || (config.family == null) )
-          "Must specify either image name or image family"
-      (mkAssert ( (config.project != null) && ((config.name == null)
-               || (config.family == null)))
-          "Specify either image name or image family alongside the project"
-         {}
-      ));
-    };
+  imageOptions = import ./image-options.nix;
 
   gceDiskOptions = { config, ... }: {
 
