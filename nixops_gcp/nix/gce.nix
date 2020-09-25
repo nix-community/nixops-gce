@@ -41,6 +41,7 @@ let
     '';
   };
 
+  imageOptions = import ./image-options.nix;
 
   gceDiskOptions = { config, ... }: {
 
@@ -76,21 +77,13 @@ let
       };
 
       image = mkOption {
-        default = null;
-        example = "image-432";
-        type = types.nullOr ( types.either types.str (resource "gce-image") );
+        default  = {};
+        type = with types; (nullOr (submodule imageOptions));
         description = ''
-          The image name or resource from which to create the GCE disk. If
-          not specified, an empty disk is created.  Changing the
+          The image, image family or image-resource from which to create the GCE disk.
+          If not specified, an empty disk is created. Changing the
           image name has no effect if the disk already exists.
         '';
-      };
-
-      publicImageProject = mkOption {
-        default = null;
-        example = "nixos-gcp-project";
-        type = types.nullOr types.str;
-        description = "The parent project containing a GCE image that was made public.";
       };
 
       size = mkOption {
@@ -184,10 +177,10 @@ let
     };
 
     config =
-      (mkAssert ( (config.snapshot == null) || (config.image == null) )
+      (mkAssert ( (config.snapshot == null) || ((config.image.name == null) && (config.image.family == null)))
                 "Disk can not be created from both a snapshot and an image at once"
-      (mkAssert ( (config.size != null) || (config.snapshot != null)
-               || (config.image != null) || (config.disk != null) )
+      (mkAssert ( (config.size != null) || (config.snapshot != null) || (config.image.name != null)
+               || (config.image.family != null) || (config.disk != null) )
                 "Disk size is required unless it is created from an image or snapshot" {
           # Automatically delete volumes that are automatically created.
           deleteOnTermination = mkDefault ( config.disk == null );
@@ -220,9 +213,9 @@ let
 
   nixosVersion = builtins.substring 0 5 (config.system.nixos.version or config.system.nixosVersion);
 
-  imageFamily = import ./gce-images.nix;
+  images = import ./gce-images.nix;
   # To be changed to
-  # imageFamily = import <nixpkgs/nixos/modules/virtualisation/gce-images.nix>;
+  # images = import <nixpkgs/nixos/modules/virtualisation/gce-images.nix>;
 
 in
 {
@@ -352,11 +345,18 @@ in
         '';
       };
 
+      # Using NixOs public GCE images by default
       bootstrapImage = mkOption {
-        default = null;
-        type = types.either types.str (resource "gce-image");
+        default = {
+          name = images."${nixosVersion}" or images.latest;
+          family = null;
+          # project = "nixos-org";
+          project = "predictix-operations";
+        };
+        type = with types; (submodule imageOptions);
         description = ''
-          Bootstrap image name or resource to use to create the root disk of the instance.
+          Bootstrap image out of which the root disks
+          of the machines will be created.
         '';
       };
 
@@ -425,15 +425,10 @@ in
   config = mkIf (config.deployment.targetEnv == "gce") {
     nixpkgs.system = mkOverride 900 "x86_64-linux";
 
-    # Using NixOs public GCE images by default
-    deployment.gce.bootstrapImage = mkDefault (
-      imageFamily."${nixosVersion}" or imageFamily.latest
-    );
 
     deployment.gce.blockDeviceMapping =  {
       "${gce_dev_prefix}${config.deployment.gce.machineName}-root" = {
           image = config.deployment.gce.bootstrapImage;
-          publicImageProject = imageFamily."project";
           size = config.deployment.gce.rootDiskSize;
           diskType = config.deployment.gce.rootDiskType;
           bootDisk = true;

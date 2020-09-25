@@ -2,6 +2,9 @@
 
 with lib;
 with import <nixops/lib.nix> lib;
+let
+  imageOptions = import ./image-options.nix;
+in
 {
 
   options = (import ./gce-credentials.nix lib "disk") // {
@@ -45,21 +48,14 @@ with import <nixops/lib.nix> lib;
     };
 
     image = mkOption {
-      default = null;
-      example = "image-2cfda297";
-      type = types.nullOr ( types.either types.str (resource "gce-image") );
+      default  = {};
+      example = { name = null; family = "super-family"; project = "operations"; };
+      type = with types; (submodule imageOptions);
       description = ''
-        The image name or resource from which this disk will be created. If
-        not specified, an empty disk is created.  Changing the
+        The image, image family or image-resource from which to create the GCE disk.
+        If not specified, an empty disk is created. Changing the
         image name has no effect if the disk already exists.
       '';
-    };
-
-    publicImageProject = mkOption {
-      default = null;
-      example = "nixos-gcp-project";
-      type = types.nullOr types.str;
-      description = "The parent project containing a GCE image that was made public for all authenticated users.";
     };
 
     diskType = mkOption {
@@ -74,13 +70,13 @@ with import <nixops/lib.nix> lib;
   };
 
   config = 
-    (mkAssert ( (config.snapshot == null) || (config.image == null) )
-              "Disk can not be created from both a snapshot and an image at once"
-      (mkAssert ( (config.size != null) || (config.snapshot != null) || (config.image != null) )
-                "Disk size is required unless it is created from an image or snapshot" {
-          _type = "gce-disk";
-        }
-      )
-    );
+    (mkAssert ( (config.snapshot == null) || ((config.image.name == null) && (config.image.family == null)))
+              "Disk can not be created from both a snapshot, image name or image family at once"
+    (mkAssert ( (config.size != null) || (config.snapshot != null) || (config.image.name != null)
+              || (config.image.family != null) )
+              "Disk size is required unless it is created from an image or snapshot" {
+            _type = "gce-disk";
+          }
+    ));
 
 }

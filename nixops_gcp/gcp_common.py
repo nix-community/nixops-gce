@@ -8,6 +8,10 @@ import nixops.resources
 
 from libcloud.compute.types import Provider
 from libcloud.compute.providers import get_driver
+from libcloud.common.google import (
+    ResourceNotFoundError,
+    GoogleBaseError,
+)
 
 
 def optional_string(elem):
@@ -30,6 +34,90 @@ def ensure_not_empty(value, name):
 def ensure_positive(value, name):
     if value <= 0:
         raise Exception("{0} must be a positive integer".format(name))
+
+
+def retrieve_gce_image(_conn, img):
+    """
+    Retrieve GCENodeImage based on family or name of the image
+    Takes object as imageOptions submodule : {'project', 'name', 'family'}
+    Returns the image object to be used for disks creation
+    """
+    if img.name or img.family:
+        # libcloud expects project to be empty list or a list of projects
+        if not img.project:
+            project = None
+        else:
+            project = [img.project]
+        if img.family:
+            """ Retrieve the latest image from the specified image family
+            Optionally from a different project """
+            try:
+                image = _conn.ex_get_image_from_family(
+                    image_family=img.family,
+                    ex_project_list=project,
+                    ex_standard_projects=False,
+                )
+            except ResourceNotFoundError:
+                raise Exception("Image family '{0}' was not found..".format(img.family))
+            except GoogleBaseError as ex:
+                if ex.value["reason"] == "forbidden":
+                    raise Exception(
+                        "Image family '{0}' has not been made public in project '{1}'".format(
+                            img.family, img.project
+                        )
+                    )
+                if ex.value["reason"] == "accessNotConfigured":
+                    raise Exception(
+                        "Project '{0}' does not exist or the Compute Engine API is disabled".format(
+                            img.project
+                        )
+                    )
+                raise Exception(ex.value["message"])
+        else:
+            """ Retrieve the image object using the name, partial name
+            or full path of a GCE image,
+            Optionally from a different project
+            """
+            try:
+                """
+                For image name, we need to specify the full image path because we cannot list images in a different project
+                Ref : https://cloud.google.com/compute/docs/images/managing-access-custom-images#share-images-publicly
+                Example :
+                https://www.googleapis.com/compute/v1/projects/project-operations/global/images/nixos-18091228a4c4cbb613c-x86-64-linux
+                """
+                image_full_path = img.name
+                if project:
+                    image_full_path = "https://www.googleapis.com/compute/v1/projects/{prj}/global/images/{img}".format(
+                        prj=img.project, img=img.name
+                    )
+                image = _conn.ex_get_image(
+                    partial_name=image_full_path,
+                    ex_project_list=project,
+                    ex_standard_projects=False,
+                )
+            except ResourceNotFoundError:
+                raise Exception("Image '{0}' was not found..".format(img.name))
+            except GoogleBaseError as ex:
+                if ex.value["reason"] == "forbidden":
+                    raise Exception(
+                        "Image '{0}' has not been made public in project '{1}'".format(
+                            img.name, img.project
+                        )
+                    )
+                if ex.value["reason"] == "accessNotConfigured":
+                    raise Exception(
+                        "Project '{0}' does not exist or the Compute Engine API is disabled".format(
+                            img.project
+                        )
+                    )
+                raise Exception(ex.value["message"])
+        return image
+    if img.project:
+        raise Exception(
+            "Specify image name or image family alongside the project '{0}'..".format(
+                img.project
+            )
+        )
 
 
 class ResourceDefinition(nixops.resources.ResourceDefinition):
