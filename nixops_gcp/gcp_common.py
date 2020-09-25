@@ -83,7 +83,7 @@ def retrieve_gce_image(_conn, img):
                 For image name, we need to specify the full image path because we cannot list images in a different project
                 Ref : https://cloud.google.com/compute/docs/images/managing-access-custom-images#share-images-publicly
                 Example :
-                https://www.googleapis.com/compute/v1/projects/predictix-operations/global/images/nixos-18091228a4c4cbb613c-x86-64-linux
+                https://www.googleapis.com/compute/v1/projects/project-operations/global/images/nixos-18091228a4c4cbb613c-x86-64-linux
                 """
                 image_full_path = img.name
                 if project:

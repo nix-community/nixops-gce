@@ -15,6 +15,7 @@ from nixops_gcp.gcp_common import (
     optional_string,
     optional_int,
 )
+from nixops_gcp.resources.gce_image import GCEImageState
 from .types.gce_disk import GceDiskOptions
 
 
@@ -161,3 +162,6 @@ class GCEDiskState(ResourceState):
                     "tried to destroy {0} which didn't exist".format(self.full_name)
                 )
         return True
+
+    def create_after(self, resources, defn):
+        return {r for r in resources if isinstance(r, GCEImageState)}
