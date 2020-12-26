@@ -11,30 +11,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Nix
-        uses: cachix/install-nix-action@v8
+        uses: cachix/install-nix-action@v12
       - name: Prefetch shell.nix
         run: 'nix-shell --run true'
       - name: Parsing
         run: './ci/check-nix-files.sh'
+        env:
+          NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz"
   black:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Nix
-        uses: cachix/install-nix-action@v8
+        uses: cachix/install-nix-action@v12
       - name: Prefetch shell.nix
         run: 'nix-shell --run true'
       - name: Black
         run: './ci/check-formatting.sh'
+        env:
+          NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz"
   mypy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Nix
-        uses: cachix/install-nix-action@v8
+        uses: cachix/install-nix-action@v12
       - name: Prefetch shell.nix
         run: 'nix-shell --run true'
       - name: Mypy
         run: './ci/check-mypy.sh'
+        env:
+          NIX_PATH: "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz"
