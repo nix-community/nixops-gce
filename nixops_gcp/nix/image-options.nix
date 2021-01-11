@@ -7,7 +7,7 @@ with lib;
     name = mkOption {
       default = null;
       example = "image-2cfda297";
-      type = types.nullOr (types.either types.str (resource "gce-image"));
+      type = types.nullOr types.str;
       description = ''
         Name of an existent image or image-resource to be used.
         Must specify the project if the image is defined as public.

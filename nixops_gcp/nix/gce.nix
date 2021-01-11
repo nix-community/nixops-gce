@@ -353,7 +353,17 @@ in
           # project = "nixos-org";
           project = "predictix-operations";
         };
-        type = with types; (submodule imageOptions);
+        type = with types; (either (resource "gce-image") (submodule imageOptions));
+
+        apply = x:
+          if (x._type or null) == "gce-image" then {
+            name = x._name;
+            family = null;
+            inherit (x) project;
+          }
+          else
+            x;
+
         description = ''
           Bootstrap image out of which the root disks
           of the machines will be created.
