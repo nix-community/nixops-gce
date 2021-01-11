@@ -14,7 +14,6 @@ class FirewallOptions(ResourceOptions):
 
 class GceNetworkOptions(ResourceOptions):
     accessKey: str
-    addressRange: str
     firewall: Mapping[str, FirewallOptions]
     name: str
     project: str

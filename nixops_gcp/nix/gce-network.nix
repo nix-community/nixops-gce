@@ -78,16 +78,6 @@ in
       description = "Description of the GCE Network. This is the <literal>Name</literal> tag of the network.";
     };
 
-    addressRange = mkOption {
-      example = "192.168.0.0/16";
-      type = types.str;
-      description = ''
-        The range of internal addresses that are legal on this network.
-        This range is a <link xlink:href="http://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing">CIDR</link>
-        specification.
-      '';
-    };
-
     firewall = mkOption {
         default = {
           allow-ssh.allowed.tcp = [ 22 ];
