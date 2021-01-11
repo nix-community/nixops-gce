@@ -288,6 +288,7 @@ in
         default = null;
         example = "resources.gceNetworks.verySecureNetwork";
         type = types.nullOr ( types.either types.str (resource "gce-network") );
+        apply = x: if builtins.elem (builtins.typeOf x) [ "string" "null" ] then x else x.name;
         description = ''
           The GCE Network to make the instance a part of. Can be either
           a gceNetworks resource or a name of a network not managed by NixOps.
