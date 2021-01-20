@@ -1260,6 +1260,8 @@ class GCEState(MachineState[GCEDefinition], ResourceState):
             ):
                 key_name = "luks-" + (v["disk_name"] or v["disk"])
                 keys[key_name] = {
+                    "name": key_name,
+                    "path": "/run/keys/" + key_name,
                     "text": v["generatedKey"],
                     "keyFile": "/run/keys" + key_name,
                     "destDir": "/run/keys",
