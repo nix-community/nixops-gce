@@ -38,7 +38,7 @@ let
     credentials = {
         project = "logicblox-dev";
         serviceAccount = "572772620792-gecnc5v4ks9e6s13tociphd1p9ct6emr@developer.gserviceaccount.com";
-        accessKey = "/home/freedom/nixos/phreedom/key.pem";
+        accessKey = builtins.readFile "/home/freedom/nixos/phreedom/key.pem";
     };
 
     mkRabbitMQCluster = { prefix ? "rmq-", size, user ? "rmq", password, cookie, credentials, ipAddress ? null, region, extraConfig ? {}, extraGceConfig ? {} }:
