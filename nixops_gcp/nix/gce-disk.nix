@@ -50,7 +50,7 @@ in
     image = mkOption {
       default  = {};
       example = { name = null; family = "super-family"; project = "operations"; };
-      type = with types; (submodule imageOptions);
+      type = with types; either (resource "gce-image") (submodule imageOptions);
       description = ''
         The image, image family or image-resource from which to create the GCE disk.
         If not specified, an empty disk is created. Changing the
@@ -69,7 +69,7 @@ in
 
   };
 
-  config = 
+  config =
     (mkAssert ( (config.snapshot == null) || ((config.image.name == null) && (config.image.family == null)))
               "Disk can not be created from both a snapshot, image name or image family at once"
     (mkAssert ( (config.size != null) || (config.snapshot != null) || (config.image.name != null)

@@ -108,24 +108,29 @@ class GCEDiskState(ResourceState):
 
         if self.state != self.UP:
             img = defn.image
+
             extra_msg = (
                 " from snapshot '{0}'".format(defn.snapshot)
                 if defn.snapshot
                 else " from image family '{0}'".format(img.family)
-                if img and img.family
+                if img.family
                 else " from image '{0}'".format(img.name)
-                if img and img.name
+                if img.name
                 else ""
             )
-            if img and img.project:
-                extra_msg += " in project '{0}'. ".format(img.project)
+            if img.project:
+                extra_msg += " in project '{0}'".format(img.project)
             self.log(
                 "creating GCE disk of {0} GiB{1}...".format(
                     defn.size if defn.size else "auto", extra_msg
                 )
             )
-            if img:
-                img = retrieve_gce_image(_conn=self.connect(), img=img)
+
+            if hasattr(img, "_type") and img._type == "gce-image":
+                img = self.depl.active_resources.get(img._name).image()
+            else:
+                img = retrieve_gce_image(self.connect(), img=img)
+
             try:
                 volume = self.connect().create_volume(
                     size=defn.size,
@@ -136,6 +141,12 @@ class GCEDiskState(ResourceState):
                     use_existing=False,
                     ex_disk_type="pd-" + defn.disk_type,
                     ex_image_family=None,
+                )
+            except AttributeError:
+                # libcloud bug: The region we're trying to create the disk
+                # in doesn't exist.
+                raise Exception(
+                    "tried creating a disk in nonexistent " "region %r" % v["region"]
                 )
             except libcloud.common.google.ResourceExistsError:
                 raise Exception(

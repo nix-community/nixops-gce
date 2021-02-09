@@ -27,6 +27,7 @@ import nixops_gcp.resources.gce_static_ip
 import nixops_gcp.resources.gce_disk
 import nixops_gcp.resources.gce_image
 import nixops_gcp.resources.gce_network
+from nixops_gcp.backends.options import ImageOptions
 
 import libcloud.common.google
 from libcloud.compute.types import NodeState
@@ -461,36 +462,41 @@ class GCEState(MachineState[GCEDefinition], ResourceState):
         for k, v in defn.block_device_mapping.items():
             if k in self.block_device_mapping:
                 continue
+
             if v["disk"] is None:
-                img = v["image"]
+                img = ImageOptions(**v["image"])
+
                 extra_msg = (
                     " from snapshot '{0}'".format(v["snapshot"])
                     if v["snapshot"]
                     else " from image family '{0}'".format(img.family)
-                    if img and img.family
+                    if img.family
                     else " from image '{0}'".format(img.name)
-                    if img and img.name
+                    if img.name
                     else ""
                 )
-                if img and img.project:
-                    extra_msg += " in project '{0}'. ".format(img.project)
+                if img.project:
+                    extra_msg += " in project '{0}'".format(img.project)
                 self.log(
                     "creating GCE disk of {0} GiB{1}...".format(
                         v["size"] if v["size"] else "auto", extra_msg
                     )
                 )
+
+                if hasattr(img, "_type") and img._type == "gce-image":
+                    img = self.depl.active_resources.get(img._name).image()
+                else:
+                    img = retrieve_gce_image(self.connect(), img=img)
                 v["region"] = defn.region
-                if img:
-                    img = retrieve_gce_image(_conn=self.connect(), img=img)
                 try:
-                    self.connect().create_volume(
+                    volume = self.connect().create_volume(
                         size=v["size"],
                         name=v["disk_name"],
                         location=v["region"],
                         snapshot=v["snapshot"],
                         image=img,
                         use_existing=False,
-                        ex_disk_type="pd-" + v.get("type", "standard"),
+                        ex_disk_type="pd-" + v["diskType"],
                         ex_image_family=None,
                     )
                 except AttributeError:
@@ -505,6 +511,13 @@ class GCEState(MachineState[GCEDefinition], ResourceState):
                         "tried creating a disk that already exists; "
                         "please run 'deploy --check' to fix this"
                     )
+                except libcloud.common.google.ResourceNotFoundError:
+                    raise Exception(
+                        "The snapshot '{0}' to be used for the volume creation does not exist".format(
+                            v["snapshot"]
+                        )
+                    )
+
             v["needsAttach"] = True
             self.update_block_device_mapping(k, v)
 
@@ -700,13 +713,13 @@ class GCEState(MachineState[GCEDefinition], ResourceState):
             defn_v = defn.block_device_mapping.get(k, None)
             if v.get("needsAttach", False) and defn_v:
                 disk_name = v["disk_name"]
-                disk_volume = v["disk_name"] if v["disk"] is None else v["disk"]["name"]
+                disk_volume = v["disk_name"] or v["disk"]
                 disk_region = v.get("region", None)
                 v["readOnly"] = defn_v["readOnly"]
                 v["bootDisk"] = defn_v["bootDisk"]
                 v["deleteOnTermination"] = defn_v["deleteOnTermination"]
                 v["passphrase"] = defn_v["passphrase"]
-                self.log("attaching GCE disk '{0}'...".format(disk_name))
+                self.log("attaching GCE disk '{0}'...".format(disk_volume))
                 if not v.get("bootDisk", False):
                     self.connect().attach_volume(
                         self.node(),
@@ -1119,7 +1132,7 @@ class GCEState(MachineState[GCEDefinition], ResourceState):
                     snapshot = self.connect().ex_get_snapshot(s_id)
                 except libcloud.common.google.ResourceNotFoundError:
                     self.warn(
-                        "snapsnot {0} for disk {1} is missing; skipping".format(
+                        "snapshot {0} for disk {1} is missing; skipping".format(
                             s_id, disk_name
                         )
                     )

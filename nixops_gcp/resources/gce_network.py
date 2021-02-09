@@ -33,7 +33,6 @@ class GCENetworkDefinition(ResourceDefinition):
         super().__init__(name, config)
 
         self.network_name = self.config.name
-        self.address_range = self.config.addressRange
 
         def parse_allowed(x):
             if x is None:
@@ -67,13 +66,12 @@ class GCENetworkDefinition(ResourceDefinition):
         self.firewall = {k: parse_fw(k, v) for k, v in self.config.firewall.items()}
 
     def show_type(self):
-        return "{0} [{1}]".format(self.get_type(), self.address_range)
+        return "{0}".format(self.get_type())
 
 
 class GCENetworkState(ResourceState):
     """State of a GCE Network"""
 
-    address_range = attr_property("gce.addressRange", None)
     network_name = attr_property("gce.network_name", None)
 
     firewall = attr_property("gce.firewall", {}, "json")
@@ -88,7 +86,7 @@ class GCENetworkState(ResourceState):
     def show_type(self):
         s = super(GCENetworkState, self).show_type()
         if self.state == self.UP:
-            s = "{0} [{1}]".format(s, self.address_range)
+            s = "{0}".format(s)
         return s
 
     @property
@@ -143,7 +141,6 @@ class GCENetworkState(ResourceState):
         self.update_firewall(fwname, None)
 
     def create(self, defn, check, allow_reboot, allow_recreate):
-        self.no_property_change(defn, "address_range")
         self.no_project_change(defn)
 
         self.copy_credentials(defn)
@@ -152,11 +149,7 @@ class GCENetworkState(ResourceState):
         if check:
             try:
                 network = self.network()
-                if self.state == self.UP:
-                    self.handle_changed_property(
-                        "address_range", network.cidr, can_fix=False
-                    )
-                else:
+                if self.state != self.UP:
                     self.warn_not_supposed_to_exist()
                     self.confirm_destroy(network, self.full_name)
 
@@ -167,7 +160,7 @@ class GCENetworkState(ResourceState):
             self.log("creating {0}...".format(self.full_name))
             try:
                 network = self.connect().ex_create_network(
-                    defn.network_name, defn.address_range
+                    defn.network_name, None, mode="auto"
                 )
             except libcloud.common.google.ResourceExistsError:
                 raise Exception(
@@ -175,7 +168,6 @@ class GCENetworkState(ResourceState):
                     "please run 'deploy --check' to fix this"
                 )
             self.state = self.UP
-            self.address_range = defn.address_range
 
         # handle firewall rules
         def trans_allowed(attrs):

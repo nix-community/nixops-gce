@@ -114,7 +114,6 @@ let
         };
 
         resources.gceNetworks."${prefix}net" = credentials // {
-            addressRange = "192.168.0.0/16";
             firewall = {
                 allow-rmq = {
                     targetTags = ["rmq-node"];

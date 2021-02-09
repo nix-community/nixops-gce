@@ -12,7 +12,7 @@ from typing import (
 
 
 class ImageOptions(ResourceOptions):
-    name: Optional[Union[str, ResourceEval]]
+    name: Optional[str]
     family: Optional[str]
     project: Optional[str]
 

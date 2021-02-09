@@ -60,6 +60,7 @@ let
         default = null;
         example = "resources.gceDisks.exampleDisk";
         type = types.nullOr ( types.either types.str (resource "gce-disk") );
+        apply = x: if x == null || (builtins.isString x) then x else x.name;
         description = ''
           GCE Disk resource or name of a disk not managed by NixOps to be mounted.
         '';
@@ -78,7 +79,7 @@ let
 
       image = mkOption {
         default  = {};
-        type = with types; (nullOr (submodule imageOptions));
+        type = with types; nullOr (either (resource "gce-image") (submodule imageOptions));
         description = ''
           The image, image family or image-resource from which to create the GCE disk.
           If not specified, an empty disk is created. Changing the
@@ -288,6 +289,7 @@ in
         default = null;
         example = "resources.gceNetworks.verySecureNetwork";
         type = types.nullOr ( types.either types.str (resource "gce-network") );
+        apply = x: if builtins.elem (builtins.typeOf x) [ "string" "null" ] then x else x.name;
         description = ''
           The GCE Network to make the instance a part of. Can be either
           a gceNetworks resource or a name of a network not managed by NixOps.
@@ -353,7 +355,7 @@ in
           # project = "nixos-org";
           project = "predictix-operations";
         };
-        type = with types; (submodule imageOptions);
+        type = with types; (either (resource "gce-image") (submodule imageOptions));
         description = ''
           Bootstrap image out of which the root disks
           of the machines will be created.
