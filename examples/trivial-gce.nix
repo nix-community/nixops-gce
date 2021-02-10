@@ -5,7 +5,7 @@
         # credentials
         project = "...";
         serviceAccount = "...@developer.gserviceaccount.com";
-        accessKey = "/path/to/your.pem";
+        accessKey = builtins.readFile "/path/to/your.pem";
 
         # instance properties
         region = "europe-west1-b";

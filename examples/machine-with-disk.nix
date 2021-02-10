@@ -7,21 +7,17 @@
 , subnet ? ""
 , volumeSize ? 50                # Default volume size
 , labels ? {}
-, description ? ""
 , ...
 }:
 {
-  network.description = description;
+  network.description = "Machine + Disk example";
 
   defaults =
-    { config, resources, lib, name, uuid, pkgs, ...}:
-    let
-      machineName = "${config.deployment.name}-" + "${name}-" + builtins.substring 2 6 "${uuid}";
-    in
-    rec {
+    { resources, lib, uuid, ... }:
+    {
       deployment.targetEnv = "gce";
       deployment.gce = {
-        inherit region subnet serviceAccount machineName;
+        inherit region subnet serviceAccount;
         project = gcpProject;
         labels = labels;
         instanceType = lib.mkDefault instanceType;
@@ -43,7 +39,7 @@
 
   # GCE Disk for Frontend
   resources.gceDisks.frontend-volume =
-    { resources, lib, ...}:
+    { resources, lib, ... }:
     let
       namespace = resources.machines.frontend.deployment.gce;
     in
