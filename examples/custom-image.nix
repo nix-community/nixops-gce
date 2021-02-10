@@ -6,14 +6,12 @@
 , instanceType ? "n1-standard-2" # Default GCE VM (instance) type
 , subnet ? ""
 , volumeSize ? 50                # Default volume size
-, description ? "Deploy from custom image"
 , ...
 }:
 {
-  network.description = description;
+  network.description = "Deploy from custom image";
 
   resources.gceImages.custom-image = 
-    { config, resources, lib, name, pkgs, ...}:
     {
       inherit serviceAccount;
       project = gcpProject;
@@ -23,15 +21,12 @@
     };
 
 
-  custom-machine =
-    { config, resources, lib, name, uuid, pkgs, ...}:
-    let
-      machineName = "${config.deployment.name}-" + "${name}-" + builtins.substring 2 6 "${uuid}";
-    in
-    rec {
+  machine =
+    { resources, lib, ... }:
+    {
       deployment.targetEnv = "gce";
       deployment.gce = {
-        inherit region subnet serviceAccount machineName;
+        inherit region subnet serviceAccount;
         project = gcpProject;
         instanceType = lib.mkDefault instanceType;
         accessKey = builtins.readFile accessKey;
