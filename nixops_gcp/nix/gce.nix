@@ -214,9 +214,7 @@ let
 
   nixosVersion = builtins.substring 0 5 (config.system.nixos.version or config.system.nixosVersion);
 
-  images = import ./gce-images.nix;
-  # To be changed to
-  # images = import <nixpkgs/nixos/modules/virtualisation/gce-images.nix>;
+  images = import <nixpkgs/nixos/modules/virtualisation/gce-images.nix>;
 
 in
 {
@@ -349,12 +347,10 @@ in
 
       # Using NixOs public GCE images by default
       bootstrapImage = mkOption {
-        default = {
-          name = images."${nixosVersion}" or images.latest;
-          family = null;
-          # project = "nixos-org";
-          project = "predictix-operations";
-        };
+        default =
+          let
+            image = images."${nixosVersion}" or images.latest;
+          in { inherit (image) name project; };
         type = with types; (either (resource "gce-image") (submodule imageOptions));
         description = ''
           Bootstrap image out of which the root disks
