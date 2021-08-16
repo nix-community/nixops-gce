@@ -27,7 +27,7 @@ class GCEStaticIPDefinition(ResourceDefinition):
         super().__init__(name, config)
         self.addr_name = self.config.name
         self.region = self.config.region
-        self.config.ip_address = self.config.ipAddress
+        self.ip_address = self.config.ipAddress
 
     def show_type(self):
         return "{0} [{1}]".format(self.get_type(), self.region)
