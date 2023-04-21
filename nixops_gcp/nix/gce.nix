@@ -6,6 +6,7 @@ with lib;
 with import <nixops/lib.nix> lib;
 
 let
+  replaceStrings = lib.replaceStrings or lib.replaceChars;
 
   gce_dev_prefix = "/dev/disk/by-id/scsi-0Google_PersistentDisk_";
 
@@ -16,7 +17,7 @@ let
 
   mkDefaultDiskName = mountPoint: cfg: cfg // {
     disk_name = if (cfg.disk_name == null) && (cfg.disk == null)
-                  then replaceChars ["/" "." "_"] ["-" "-" "-"]
+                  then replaceStrings ["/" "." "_"] ["-" "-" "-"]
                     (substring 1 ((stringLength mountPoint) - 1) mountPoint)
                   else cfg.disk_name;
   };
