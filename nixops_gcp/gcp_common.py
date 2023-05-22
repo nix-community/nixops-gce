@@ -139,7 +139,7 @@ class ResourceDefinition(nixops.resources.ResourceDefinition):
                 "match the regular expression [a-z]([-a-z0-9]*[a-z0-9])? which "
                 "means the first character must be a lowercase letter, and all "
                 "following characters must be a dash, lowercase letter, or digit, "
-                "except the last character, which cannot be a dash.".format(res_name)
+                "except the last character, which cannot be a dash. You may set a different name using the resource 'name' option.".format(res_name)
             )
 
         if hasattr(self.config, "gce") and hasattr(self.config.gce, "project"):
