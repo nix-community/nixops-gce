@@ -39,7 +39,7 @@ class GCEForwardingRuleDefinition(ResourceDefinition):
         self.region = self.config.region
         self.protocol = self.config.protocol
 
-        pr = self.config.protocol.portRange
+        pr = self.config.portRange
         self.port_range = (
             None if pr is None else "{0}-{1}".format(pr, pr) if pr.isdigit() else pr
         )

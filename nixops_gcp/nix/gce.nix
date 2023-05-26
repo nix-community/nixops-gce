@@ -6,6 +6,7 @@ with lib;
 with import <nixops/lib.nix> lib;
 
 let
+  replaceStrings = lib.replaceStrings or lib.replaceChars;
 
   gce_dev_prefix = "/dev/disk/by-id/scsi-0Google_PersistentDisk_";
 
@@ -16,29 +17,9 @@ let
 
   mkDefaultDiskName = mountPoint: cfg: cfg // {
     disk_name = if (cfg.disk_name == null) && (cfg.disk == null)
-                  then replaceChars ["/" "." "_"] ["-" "-" "-"]
+                  then replaceStrings ["/" "." "_"] ["-" "-" "-"]
                     (substring 1 ((stringLength mountPoint) - 1) mountPoint)
                   else cfg.disk_name;
-  };
-
-  addr_manager = pkgs.stdenv.mkDerivation {
-    name = "google-address-manager";
-    src = pkgs.fetchFromGitHub {
-      owner = "GoogleCloudPlatform";
-      repo = "compute-image-packages";
-      rev = "6cb6f9d2219dca1d14aeb60177a15492814032a3";
-      sha256 = "10qgdd2sahvb3pwajbrw2zi8ad2xqgpi782lzzkp6yzvwyiybn18";
-    };
-    preConfigure = ''
-      substituteInPlace google-daemon/usr/share/google/google_daemon/address_manager.py --replace /sbin/ip ${pkgs.iproute}/sbin/ip
-      substituteInPlace google-daemon/usr/share/google/google_daemon/manage_addresses.py --replace /usr/bin/python ${pkgs.python2}/bin/python2
-    '';
-    installPhase = ''
-      mkdir -p $out/share/google_daemon
-      cp google-daemon/usr/share/google/google_daemon/address_manager.py $out/share/google_daemon
-      cp google-daemon/usr/share/google/google_daemon/manage_addresses.py $out/share/google_daemon
-      cp google-daemon/usr/share/google/google_daemon/utils.py $out/share/google_daemon
-    '';
   };
 
   imageOptions = import ./image-options.nix;
@@ -446,16 +427,6 @@ in
             inherit (dev) cipher keySize passphrase;
           };
       in mapAttrs' f (filterAttrs (name: dev: dev.encrypt) config.deployment.gce.blockDeviceMapping);
-
-    systemd.services.configure-forwarding-rules =
-      { description = "Add extra IPs required for forwarding rules to work";
-
-        wantedBy = [ "multi-user.target" ];
-        before = [ "sshd.service" ];
-        after = [ "network.target" ];
-
-        serviceConfig.ExecStart = "${addr_manager}/share/google_daemon/manage_addresses.py";
-      };
 
   };
 }
