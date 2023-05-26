@@ -207,6 +207,19 @@ class GCEState(MachineState[GCEDefinition], ResourceState):
             "items": [{"key": k, "value": v} for k, v in metadata.items()],
         }
 
+    # invoked by nixops before calling ssh
+    def get_ssh_host_keys(self):
+        return (
+            self.private_ipv4
+            + " "
+            + self.public_host_key
+            + "\n"
+            + self.public_ipv4
+            + " "
+            + self.public_host_key
+            + "\n"
+        )
+
     def update_block_device_mapping(self, k, v):
         x = self.block_device_mapping
         if v == None:
